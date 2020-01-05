@@ -5,7 +5,8 @@
 
 <?php
 $playlists = Array();
-$path = "/home/fpp/media/plugins/fpp-vote-dev";
+#$path = "/home/fpp/media/plugins/fpp-vote-dev";
+$path = "/home/fpp/media/plugins/brp-fpp-voting";
 
 WriteSettingToFile("playlistSpaceError", "false", "brp-voting");
 foreach (scandir($playlistDirectory) as $pFile) {
