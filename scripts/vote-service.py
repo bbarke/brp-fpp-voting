@@ -4,52 +4,83 @@ import requests
 import sys
 import json
 import time
+import os
 
 #urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-playlist_file_location = ''
-playlist_name = ''
 private_key = ''
 next_song_to_play = ''
 next_song_to_play_id = ''
-
+playing_songs = True
+show_status = -1
+last_loaded_playlist = ''
+uploaded_song_name = ''
+start_time = ''
+status_iteration = 0
 
 def get_new_private_key():
     logging.debug('Getting new private key')
 
-    response = requests.request("GET", urlBase + '/v0/vote/getNewPrivateKey', headers={}, timeout=(10, 10))
+    response = requests.request("GET", urlBase + '/v0/vote/get-new-private-key', headers={}, timeout=(10, 10))
+
+    if response.status_code != 201:
+        logging.error('could not generate a new private key')
+        exit(0)
+
     new_private_key = response.text.encode('utf-8')
     save_setting('privateKey', new_private_key )
+    logging.info('Generated new private key: {}'.format(new_private_key))
     return new_private_key
 
-def load_songs():
-    global loadSongsTries
+def load_songs(playlist_to_load):
+    global load_song_tries
+    global last_loaded_playlist
+    global show_status
+    global uploaded_song_name
 
-    if loadSongsTries == 0:
+    if load_song_tries == 0:
         set_status('Loading Songs...')
     else:
-        set_status('Loading Songs, try ' + str(loadSongsTries))
+        set_status('Loading Songs, try ' + str(load_song_tries))
 
-    with open(playlist_file_location) as f:
+    if playlist_to_load == '':
+        for f in os.listdir('/home/fpp/media/playlists/'):
+            if f.endswith(".json"):
+                playlist_to_load = f[:-5]
+                logging.info('No previous song loaded, loading temporarily: {}'.format(playlist_to_load))
+                break
+
+    if playlist_to_load == '':
+        set_status('You need to create a playlist to use this plugin.')
+        return
+
+    file_location = '/home/fpp/media/playlists/{}.json'.format(playlist_to_load)
+    with open(file_location) as f:
         data = json.load(f)
     logging.info(data)
     song_names = []
 
-    for idx, song in enumerate(data['mainPlaylist']):
-        logging.info(song['enabled'])
+    lead_in_songs = 0
 
+    if 'leadIn' in data:
+        lead_in_songs = len(data['leadIn'])
+        logging.info('Has lead in with {} song(s)'.format(lead_in_songs))
+
+    for idx, song in enumerate(data['mainPlaylist'], start = lead_in_songs):
         if song['enabled'] == 1:
             song_names.append({"id": idx, "title": str(song['sequenceName'])})
 
     payload = {
         'privateKey': private_key,
-        'songs': song_names
+        'songs': song_names,
+        'status': get_show_status(),
+        'nextShow': start_time
     }
 
     logging.info("Songs: " + json.dumps(payload))
-    url = urlBase + "/v0/vote/uploadSongs"
+    url = urlBase + "/v0/vote/upload-songs"
     headers = {
         'Content-Type': 'application/json'
     }
@@ -60,33 +91,37 @@ def load_songs():
 
         if response.status_code != 200:
             logging.error("Can't upload song data: " + str(response.status_code))
-            retry_load_songs()
+            retry_load_songs(playlist_to_load)
 
-        loadSongsTries = 0
+        load_song_tries = 0
 
-        logging.info('Status code: ' + str(response.status_code))
         public_api_key = response.text.encode('utf-8')
         logging.info("Public API key: " + public_api_key)
         save_setting('publicApiKey', public_api_key)
         set_status('Songs Loaded')
+        last_loaded_playlist = playlist_to_load
+
+        show_status = ''
+        uploaded_song_name = ''
     except Exception, e:
         logging.error('Problem loading songs: ' + str(e))
-        retry_load_songs()
+        retry_load_songs(playlist_to_load)
 
-def retry_load_songs():
-    global loadSongsTries
-    if loadSongsTries > 10:
+def retry_load_songs(playlist_to_load):
+    global load_song_tries
+    if load_song_tries > 10:
         logging.error('Tried several times to upload songs, quitting...')
         set_status('Problem uploading songs to server. Please try restarting the service soon')
         sys.exit(1)
     else:
-        loadSongsTries += 1
-        time.sleep(loadSongsTries * 10)
-        return load_songs()
+        load_song_tries += 1
+        time.sleep(load_song_tries * 10)
+        return load_songs(playlist_to_load)
 
 def get_voting_results():
     global next_song_to_play
     global next_song_to_play_id
+    global last_loaded_playlist
 
     set_status('Getting voting results')
     try:
@@ -101,11 +136,18 @@ def get_voting_results():
 
         if response.status_code == 404:
             logging.info(response.text.encode('utf-8'))
-            load_songs()
+            load_songs(last_loaded_playlist)
+            return
+
+
+        if response.status_code == 204:
+            logging.debug("No songs voted for, continue playing")
+            next_song_to_play_id = '-1'
             return
 
         title = response.json()['title'].encode('utf-8')
         id = response.json()['id'].encode('utf-8')
+
         logging.info("Title of song to play next: " + title + " id: " + id)
         next_song_to_play = title
         next_song_to_play_id = id
@@ -116,7 +158,12 @@ def get_voting_results():
         time.sleep(5)
 
 def get_status():
-    set_status('Waiting for song to get close to ending..')
+    global playing_songs
+    global show_status
+    global uploaded_song_name
+    global start_time
+    global status_iteration
+
     try:
         url = "http://localhost/fppjson.php?command=getFPPstatus"
         response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
@@ -129,13 +176,49 @@ def get_status():
         json = response.json()
         current_song = str(json['current_sequence'].encode('utf-8'))
         seconds_remaining = int(json['seconds_remaining'].encode('utf-8'))
-        logging.debug("Current song: " + current_song + ", Seconds remaining: " + str(seconds_remaining))
+        current_playlist = json['current_playlist']['playlist']
 
+
+        logging.debug("Current playlist: {}, Current song: {}, Seconds remaining: {}"
+                     .format(current_playlist, current_song, str(seconds_remaining)))
+
+        current_show_status = int(json['status'])
+
+        start_time = json['next_playlist']['start_time']
+
+        if status_iteration >= 60:
+            status_iteration = 0
+            check_show_uploaded()
+
+        if current_show_status != show_status:
+            show_status = current_show_status
+            upload_show_playing_status()
+
+        if current_show_status != 1:
+            logging.debug('Not currently playing songs')
+            playing_songs = False
+            return
+
+        if not playing_songs:
+            playing_songs = True
+            logging.info('Load Playlist {}'.format(current_playlist))
+            load_songs(current_playlist)
+            upload_now_playing(uploaded_song_name)
+
+    # Check to see if our playlist changed
+        if current_playlist != last_loaded_playlist:
+            logging.info("Playlist changed from '{}' to '{}'".format(last_loaded_playlist, current_playlist))
+            load_songs(current_playlist)
+
+        if current_song != uploaded_song_name:
+            uploaded_song_name = current_song
+            upload_now_playing(uploaded_song_name)
+
+        set_status('Waiting for song to get close to ending..')
         if seconds_remaining < 3:
             get_voting_results()
             play_next_song_now()
             time.sleep(5)
-            #gracefullyStop()
 
     except Exception, e:
         logging.error("Problem getting status! " + str(e))
@@ -154,14 +237,21 @@ def stop_now():
 
 def play_next_song_now():
     global next_song_to_play_id
+    global last_loaded_playlist
+    global uploaded_song_name
+
+    if next_song_to_play_id == '-1':
+        logging.debug('No songs voted for')
+        return
+
     set_status('Starting next song')
-    stop_now()
-    logging.info('Play song now: ' + next_song_to_play_id + ', ' + playlist_name)
-    url = 'http://localhost/fppxml.php?command=startPlaylist&repeat=checked&playList=' + playlist_name + '&playEntry=' + next_song_to_play_id
+    logging.info('Play song now: {}, {}'.format(next_song_to_play_id, last_loaded_playlist))
+    url = 'http://localhost/fppxml.php?command=startPlaylist&repeat=checked&playList={}&playEntry={}&section=MainPlaylist'\
+        .format(last_loaded_playlist, next_song_to_play_id)
+
     r = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
     next_song_to_play_id = ''
-    logging.info(r.status_code)
-
+    uploaded_song_name = ''
 
 def save_setting(setting, value):
     url = "http://localhost/fppjson.php?command=setPluginSetting&plugin=brp-voting&key=" + setting + "&value=" + value
@@ -175,33 +265,98 @@ def get_setting(setting):
 def set_status(status):
     save_setting('status', status.replace(' ', '*'))
 
-logging.info("arglength: " + str(len(sys.argv)))
-logging.info("arglength: " + str(sys.argv[0]))
-logging.info("arglength: " + str(sys.argv[1]))
-if len(sys.argv) == 2:
-    get_new_private_key()
-    exit(0)
+def get_show_status():
+    status = 'UNKNOWN'
+    if show_status == 1:
+        status = 'PLAYING'
+    if show_status == 0:
+        status = 'NOT_PLAYING'
+        set_status('Idle, a playlist is not currently playing')
+    if show_status == 2:
+        status = 'STOPPING'
+        set_status('Playlist is gracefully stopping')
 
-if len(sys.argv) >= 3:
-    playlist_file_location = str(sys.argv[1])
-    playlist_name = str(sys.argv[2])
+    return status
 
-if len(sys.argv) != 4:
+def check_show_uploaded():
+    global private_key
+
+    url = urlBase + "/v0/vote/check-show-uploaded"
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    payload = {
+        'privateKey': private_key,
+    }
+
+    response = requests.request("POST", url, headers=headers, data=json.dumps(payload), timeout=(10, 10))
+
+    if response.status_code == 404:
+        logging.info('Songs are not laoded, the server must have restarted. Upload them again')
+        load_songs(last_loaded_playlist)
+
+def upload_show_playing_status():
+    global private_key
+    global show_status
+    global start_time
+
+    url = urlBase + "/v0/vote/current-show-status"
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    status = get_show_status()
+
+    payload = {
+        'privateKey': private_key,
+        'status': status,
+        'nextShow': start_time
+    }
+
+    logging.info("Setting new status: {}".format(json.dumps(payload)))
+    response = requests.request("POST", url, headers=headers, data=json.dumps(payload), timeout=(10, 10))
+    logging.debug('Set show status response: {}'.format(response.status_code))
+
+    if response.status_code == 404:
+        load_songs(last_loaded_playlist)
+
+def upload_now_playing(song_name):
+    global private_key
+
+    url = urlBase + "/v0/vote/now-playing"
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    payload = {
+        'privateKey': private_key,
+        'song': { 'id' : '-1', 'title' : song_name}
+    }
+
+    logging.info("Setting now playing: {}".format(json.dumps(payload)))
+    response = requests.request("POST", url, headers=headers, data=json.dumps(payload), timeout=(10, 10))
+
+    if response.status_code == 404:
+        load_songs(last_loaded_playlist)
+        upload_now_playing(song_name)
+
+
+if len(sys.argv) == 1:
     private_key = get_new_private_key()
 else:
-    private_key = str(sys.argv[3])
+    private_key = str(sys.argv[1])
+    logging.info("Private key: {}".format(private_key))
 
-logging.info('Starting voting service with playlist ' + playlist_file_location)
+    if private_key == 'newPrivateKey':
+        get_new_private_key()
+        exit(0)
 
-loadSongsTries = 0
-
-
-load_songs()
+load_song_tries = 0
 
 logging.debug('looping')
 while(True):
     time.sleep(1)
     get_status()
-
-
+    status_iteration += 1
 

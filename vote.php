@@ -4,36 +4,8 @@
 
 
 <?php
-$playlists = Array();
 #$path = "/home/fpp/media/plugins/fpp-vote-dev";
 $path = "/home/fpp/media/plugins/brp-fpp-voting";
-
-WriteSettingToFile("playlistSpaceError", "false", "brp-voting");
-foreach (scandir($playlistDirectory) as $pFile) {
-    global $brpPlugin;
-
-    if ($pFile != "." && $pFile != "..") {
-
-        if (preg_match('/\.json$/', $pFile)) {
-
-            $pFile = preg_replace('/\.json$/', '', $pFile);
-            if (preg_match('/\s/', $pFile)) {
-                WriteSettingToFile("playlistSpaceError", "true", "brp-voting");
-                continue;
-            }
-
-            $playlists[$pFile] = $pFile;
-
-        }
-
-    }
-}
-
-function getPlaylists()
-{
-    global $playlists;
-    return $playlists;
-}
 
 function tailFile($filepath, $lines = 1) {
     return trim(implode("", array_slice(file($filepath), -$lines)));
@@ -50,16 +22,10 @@ function isServiceRunning() {
 
 function startService() {
     global $path;
-    global $playlistDirectory;
-    global $playlists;
-    $playlist = ReadSettingFromFile('playlistSelect', 'brp-voting');
-    if (empty($playlist)) {
-        $playlist = reset($playlists);
-    }
-    $playlistToUse = $playlistDirectory . "/$playlist.json";
+
     $privateKey = ReadSettingFromFile('privateKey', 'brp-voting');
     WriteSettingToFile("publicApiKey", "false", "brp-voting");
-    shell_exec("/usr/bin/python2.7 $path/scripts/vote-service.py $playlistToUse $playlist $privateKey > /dev/null &");
+    shell_exec("/usr/bin/python2.7 $path/scripts/vote-service.py $privateKey > /dev/null &");
 }
 
 function killService() {
@@ -181,41 +147,51 @@ This causes an error when trying to save the playlist settings because of a bug 
 You will need to resolve this before the playlist will be selectable in the dropdown below</span><br>");
 }
 ?>
+<table>
+    <tr>
+        <form method="post">
+            <td>Private Key<br>(DO NOT SHARE):</td>
+            <td>
+                <input id="keyDisabled" type="text" name="keyDisabled" size="36" disabled>
+                <?php
+                    if (!isServiceRunning()) {
+                        print('<input id="generateKeyBtn" class="button" type="submit" name="generateNewKey" value="Generate New Key">');
+                    }
+                ?>
+            </td>
+        </form>
+    </tr>
 
-<div>
-    Playlist: <?php PrintSettingSelect("playlist", "playlistSelect", "0", "0", ReadSettingFromFile('playlistSelect', 'brp-voting'), getPlaylists(), 'brp-voting'); ?>
-    <div style="font-size:12px; padding-top:4px; font-family:Arial">If you change the playlist, you will need to stop
-    and then start the service again for the change to take place</div>
-</div>
+    <div id="isServiceRunningDiv">
+        <form method="post">
+            <?php
+            if (isServiceRunning()) {
+                print("<tr>");
+                print("<td>Service is running.</td>");
+                print('<td><input id="stopSvcBtn" class="button" name="killService" type="submit" value="Stop Service"/>');
+                print ('<script>setVotingUrl()</script>');
+                print("</tr>");
 
+                print('<tr id="currentStatusDiv" hidden><td>Current status:</td><td id="status"></td></tr>');
+                print ('<script>monitorStatus()</script>');
 
-<div>
-    <form method="post">
-        Private Key (DO NOT SHARE): <input id="keyDisabled" type="text" name="keyDisabled" size="36" disabled>
-        <input id="generateKeyBtn" class="button" type="submit" name="generateNewKey" value="Generate New Key">
-    </form>
-</div>
-<div id="isServiceRunningDiv">
-    <form method="post">
-        <?php
-        if (isServiceRunning()) {
-            print("Service is running. ");
-            print('<input id="stopSvcBtn" class="button" name="killService" type="submit" value="Stop Service"/>');
-            print ('<script>setVotingUrl()</script>');
-            print('<div id="currentStatusDiv" hidden>Current status: <span id="status"></span></div>');
-            print ('<script>monitorStatus()</script>');
-        } else {
-            print("<span style='color:darkred;font-weight:bold;'>Service is not running!</span>");
-            print('<input id="startSvcBtn" class="button" name="startService" type="submit" value="Start Service"/>');
-        }
-        ?>
-    </form>
-</div>
+            } else {
+                print("<tr>");
+                print("<td style='color:darkred;font-weight:bold;'>Service is not running!</td>");
+                print('<td><input id="startSvcBtn" class="button" name="startService" type="submit" value="Start Service"/></td>');
+                print("</tr>");
 
-<div id="votingUrlContainer" hidden>
-    Your unique voting URL is: <a id="votingUrl" target="_blank"></a>
-</div>
-
+            }
+            ?>
+        </form>
+    </div>
+    <tr>
+        <td colspan="2">
+        <div id="votingUrlContainer" hidden>
+            Your unique voting URL is: <a id="votingUrl" target="_blank"></a>
+        </div></td>
+    </tr>
+</table>
 <div>
     <p>Please help support the upkeep and cost of the server along with other projects we are working on!</p>
     <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
