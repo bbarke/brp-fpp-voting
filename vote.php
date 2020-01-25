@@ -54,32 +54,24 @@ if (isset($_POST['generateNewKey'])) {
 <script>
     var voteUrlInterval;
 
-    function saveSettings(setting, value, message) {
-
-        var url = "fppjson.php?command=setPluginSetting&plugin=brp-voting&key=" + setting + "&value=" + value;
-
-        $.ajax({
-            type: 'GET',
-            dataType: "json",
-            url: url,
-            success: function(data) {
-                console.log(JSON.stringify(data));
-                $.jGrowl(message)
-
-            }
-        });
-    }
-
     function getSetting(setting, callback) {
-        var url = "fppjson.php?command=getPluginSetting&plugin=brp-voting&key=" + setting;
+        var url = 'api/configfile/plugin.brp-voting';
 
         $.ajax({
             type: 'GET',
-            dataType: "json",
             url: url,
             success: function(data) {
                 console.log(JSON.stringify(data));
-                callback(data);
+                var dataSplit = data.split('\n');
+                var settingRegex = new RegExp(setting + ' = "(.*)"$');
+
+                for (var i = 0; i < dataSplit.length; i++) {
+                    var line = dataSplit[i];
+                    if (line.match(settingRegex)) {
+                        var foundSetting = line.replace(settingRegex, "$1");
+                        callback(foundSetting)
+                    }
+                }
             }
         });
     }
@@ -90,7 +82,7 @@ if (isset($_POST['generateNewKey'])) {
 
     function setPrivateKeyField() {
         getSetting('privateKey', function (data) {
-            var privateKey = data.privateKey;
+            var privateKey = data;
 
             if (privateKey === false) {
                 $('#keyDisabled').val('You need to generate a new key');
@@ -103,7 +95,7 @@ if (isset($_POST['generateNewKey'])) {
 
     function setVotingUrl() {
         getSetting('publicApiKey', function (data) {
-            var publicKey = data.publicApiKey;
+            var publicKey = data;
 
             if (publicKey === false || publicKey === 'false') {
                 return
@@ -118,7 +110,7 @@ if (isset($_POST['generateNewKey'])) {
 
     function getStatus() {
         getSetting('status', function(data) {
-            $('#status').text(data.status.replace(/\*/g, ' '))
+            $('#status').text(data.replace(/\*/g, ' '))
         })
     }
 
