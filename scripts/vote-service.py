@@ -282,14 +282,17 @@ def set_status(status):
 
 def get_show_status():
     status = 'UNKNOWN'
-    if show_status == 1:
-        status = 'PLAYING'
     if show_status == 0:
         status = 'NOT_PLAYING'
         set_status('Idle, a playlist is not currently playing')
+    if show_status == 1:
+        status = 'PLAYING'
     if show_status == 2:
         status = 'STOPPING'
         set_status('Playlist is gracefully stopping')
+    if show_status == 3:
+        status = 'STOPPING_LOOP'
+        set_status('Playlist is gracefully stopping loop')
 
     return status
 
@@ -370,7 +373,7 @@ else:
 load_song_tries = 0
 
 logging.debug('looping')
-while(True):
+while True:
     time.sleep(1)
     get_status()
     status_iteration += 1

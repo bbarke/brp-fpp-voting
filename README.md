@@ -5,4 +5,4 @@ This is the Falcon Player plugin used to allow viewers to vote for their next fa
 
 This plugin is in the Alpha stage.
 
-This has been developed using the Raspberry Pi 3B+ and Falcon Player v3.5.7 (v3.5 branch)
+You can follow the progress of this plugin here: https://falconchristmas.com/forum/index.php/topic,12340.0.html
