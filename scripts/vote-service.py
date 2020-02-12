@@ -5,6 +5,7 @@ import sys
 import json
 import time
 import os
+import re
 
 #urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
@@ -62,7 +63,7 @@ def load_songs(playlist_to_load):
     logging.info(data)
     song_names = []
 
-    lead_in_songs = 0
+    lead_in_songs = 1
 
     if 'leadIn' in data:
         lead_in_songs = len(data['leadIn'])
@@ -165,7 +166,7 @@ def get_status():
     global status_iteration
 
     try:
-        url = "http://localhost/fppjson.php?command=getFPPstatus"
+        url = "http://fpp.local:32322/fppd/status"
         response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
 
         if response.status_code != 200:
@@ -223,18 +224,6 @@ def get_status():
     except Exception, e:
         logging.error("Problem getting status! " + str(e))
 
-def gracefully_stop():
-    logging.debug('Gracefully stop current song')
-    url = 'http://localhost/fppxml.php?command=stopGracefully'
-    r = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
-    logging.info(r.status_code)
-
-def stop_now():
-    logging.debug('Stop song now')
-    url = 'http://localhost/fppxml.php?command=stopNow'
-    r = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
-    logging.info(r.status_code)
-
 def play_next_song_now():
     global next_song_to_play_id
     global last_loaded_playlist
@@ -246,7 +235,8 @@ def play_next_song_now():
 
     set_status('Starting next song')
     logging.info('Play song now: {}, {}'.format(next_song_to_play_id, last_loaded_playlist))
-    url = 'http://localhost/fppxml.php?command=startPlaylist&repeat=checked&playList={}&playEntry={}&section=MainPlaylist'\
+
+    url = 'http://fpp.local:32322/command/Start Playlist At Item/{}/{}/true'\
         .format(last_loaded_playlist, next_song_to_play_id)
 
     r = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
@@ -254,27 +244,55 @@ def play_next_song_now():
     uploaded_song_name = ''
 
 def save_setting(setting, value):
-    url = "http://localhost/fppjson.php?command=setPluginSetting&plugin=brp-voting&key=" + setting + "&value=" + value
+    url = 'http://localhost/api/configfile/plugin.brp-voting'
+
     response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
 
-def get_setting(setting):
-    url = "fppjson.php?command=getPluginSetting&plugin=brp-voting&key=" + setting
-    response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
-    return response.text.encode('utf-8')
+    existing_settings = []
+    if response.status_code == 200:
+        existing_settings = response.text.encode('utf-8').splitlines()
+
+
+    regex = setting + ' = "(.*)"$'
+    found = False
+    replacement ='{} = "{}"'.format(setting, value)
+    new_settings = []
+
+    for line in existing_settings:
+        m = re.match(regex, line)
+        if m:
+            new_settings.append(replacement)
+            found = True
+        else:
+            new_settings.append(line)
+
+    if not found:
+        new_settings.append(replacement)
+
+    headers = {
+        'Content-Type': 'text/html'
+    }
+
+    body = '\n'.join(new_settings)
+
+    response = requests.request("POST", url, headers={}, data=body, timeout=(10, 10))
 
 def set_status(status):
-    save_setting('status', status.replace(' ', '*'))
+    save_setting('status', status)
 
 def get_show_status():
     status = 'UNKNOWN'
-    if show_status == 1:
-        status = 'PLAYING'
     if show_status == 0:
         status = 'NOT_PLAYING'
         set_status('Idle, a playlist is not currently playing')
+    if show_status == 1:
+        status = 'PLAYING'
     if show_status == 2:
         status = 'STOPPING'
         set_status('Playlist is gracefully stopping')
+    if show_status == 3:
+        status = 'STOPPING_LOOP'
+        set_status('Playlist is gracefully stopping loop')
 
     return status
 
@@ -355,7 +373,7 @@ else:
 load_song_tries = 0
 
 logging.debug('looping')
-while(True):
+while True:
     time.sleep(1)
     get_status()
     status_iteration += 1
