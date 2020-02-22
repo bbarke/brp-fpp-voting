@@ -10,6 +10,8 @@ import re
 #urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
+plugin_version = '3'
+
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
 next_song_to_play = ''
@@ -18,6 +20,7 @@ playing_songs = True
 show_status = -1
 last_loaded_playlist = ''
 uploaded_song_name = ''
+uploaded_song_id = ''
 start_time = ''
 status_iteration = 0
 
@@ -77,7 +80,8 @@ def load_songs(playlist_to_load):
         'privateKey': private_key,
         'songs': song_names,
         'status': get_show_status(),
-        'nextShow': start_time
+        'nextShow': start_time,
+        'pluginVersion': plugin_version
     }
 
     logging.info("Songs: " + json.dumps(payload))
@@ -104,6 +108,7 @@ def load_songs(playlist_to_load):
 
         show_status = ''
         uploaded_song_name = ''
+        load_settings()
     except Exception, e:
         logging.error('Problem loading songs: ' + str(e))
         retry_load_songs(playlist_to_load)
@@ -118,6 +123,27 @@ def retry_load_songs(playlist_to_load):
         load_song_tries += 1
         time.sleep(load_song_tries * 10)
         return load_songs(playlist_to_load)
+
+def load_settings():
+    url = urlBase + "/v0/vote/upload-settings"
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    all_settings = get_all_settings()
+    logging.info(all_settings)
+
+    payload = {
+        'privateKey': private_key,
+        'showSettings': {
+            'votingMsg': get_setting_from_all_settings('votingMsg', all_settings),
+            'allowCurrentSongVoting': get_setting_from_all_settings('allowCurrentSongVoting', all_settings) == 'true'
+        }
+    }
+
+    logging.info(json.dumps(payload))
+    response = requests.request("POST", url, headers=headers, data=json.dumps(payload), timeout=(10, 10))
+
 
 def get_voting_results():
     global next_song_to_play
@@ -162,6 +188,7 @@ def get_status():
     global playing_songs
     global show_status
     global uploaded_song_name
+    global uploaded_song_id
     global start_time
     global status_iteration
 
@@ -176,6 +203,7 @@ def get_status():
             return
         json = response.json()
         current_song = str(json['current_sequence'].encode('utf-8'))
+        current_song_id = json['current_playlist']['index']
         seconds_remaining = int(json['seconds_remaining'].encode('utf-8'))
         current_playlist = json['current_playlist']['playlist']
 
@@ -204,16 +232,17 @@ def get_status():
             playing_songs = True
             logging.info('Load Playlist {}'.format(current_playlist))
             load_songs(current_playlist)
-            upload_now_playing(uploaded_song_name)
+            upload_now_playing(uploaded_song_name, uploaded_song_id)
 
     # Check to see if our playlist changed
         if current_playlist != last_loaded_playlist:
             logging.info("Playlist changed from '{}' to '{}'".format(last_loaded_playlist, current_playlist))
             load_songs(current_playlist)
 
-        if current_song != uploaded_song_name:
+        if current_song != uploaded_song_name and current_song_id != uploaded_song_id :
             uploaded_song_name = current_song
-            upload_now_playing(uploaded_song_name)
+            uploaded_song_id = current_song_id
+            upload_now_playing(uploaded_song_name, uploaded_song_id)
 
         set_status('Waiting for song to get close to ending..')
         if seconds_remaining < 3:
@@ -243,22 +272,37 @@ def play_next_song_now():
     next_song_to_play_id = ''
     uploaded_song_name = ''
 
+def get_all_settings():
+    url = 'http://localhost/api/configfile/plugin.brp-voting'
+    response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
+
+    if response.status_code == 200:
+        return response.text.encode('utf-8').splitlines()
+    else:
+        logging.error('There was a problem getting all of the settings')
+        return []
+
+def get_setting_from_all_settings(setting, all_settings):
+    regex = setting + ' = "(.*)"$'
+
+    for line in all_settings:
+        m = re.match(regex, line)
+        if m:
+            return m.group(1)
+
+    return None
+
 def save_setting(setting, value):
     url = 'http://localhost/api/configfile/plugin.brp-voting'
 
-    response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
-
-    existing_settings = []
-    if response.status_code == 200:
-        existing_settings = response.text.encode('utf-8').splitlines()
-
+    all_settings = get_all_settings()
 
     regex = setting + ' = "(.*)"$'
     found = False
     replacement ='{} = "{}"'.format(setting, value)
     new_settings = []
 
-    for line in existing_settings:
+    for line in all_settings:
         m = re.match(regex, line)
         if m:
             new_settings.append(replacement)
@@ -339,7 +383,7 @@ def upload_show_playing_status():
     if response.status_code == 404:
         load_songs(last_loaded_playlist)
 
-def upload_now_playing(song_name):
+def upload_now_playing(song_name, song_id):
     global private_key
 
     url = urlBase + "/v0/vote/now-playing"
@@ -349,7 +393,7 @@ def upload_now_playing(song_name):
 
     payload = {
         'privateKey': private_key,
-        'song': { 'id' : '-1', 'title' : song_name}
+        'song': { 'id' : song_id, 'title' : song_name}
     }
 
     logging.info("Setting now playing: {}".format(json.dumps(payload)))
@@ -357,19 +401,22 @@ def upload_now_playing(song_name):
 
     if response.status_code == 404:
         load_songs(last_loaded_playlist)
-        upload_now_playing(song_name)
+        upload_now_playing(song_name, song_id)
 
+argument = str(sys.argv[1])
 
-if len(sys.argv) == 1:
-    private_key = get_new_private_key()
-else:
-    private_key = str(sys.argv[1])
-    logging.info("Private key: {}".format(private_key))
+if argument == 'loadSettings':
+    private_key = str(sys.argv[2])
+    load_settings()
+    exit(0)
 
-    if private_key == 'newPrivateKey':
-        get_new_private_key()
-        exit(0)
+if argument == 'newPrivateKey':
+    get_new_private_key()
+    exit(0)
 
+private_key = argument
+
+logging.info("Private key: {}".format(private_key))
 load_song_tries = 0
 
 logging.debug('looping')
