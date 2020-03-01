@@ -10,7 +10,7 @@ import re
 #urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '3'
+plugin_version = '4'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
@@ -23,6 +23,7 @@ uploaded_song_name = ''
 uploaded_song_id = ''
 start_time = ''
 status_iteration = 0
+cached_all_settings = []
 
 def get_new_private_key():
     logging.debug('Getting new private key')
@@ -72,9 +73,31 @@ def load_songs(playlist_to_load):
         lead_in_songs = len(data['leadIn'])
         logging.info('Has lead in with {} song(s)'.format(lead_in_songs))
 
+    title_pref = get_setting_from_cache('votingTitlePreference')
     for idx, song in enumerate(data['mainPlaylist'], start = lead_in_songs):
-        if song['enabled'] == 1:
-            song_names.append({"id": idx, "title": str(song['sequenceName'])})
+        if song['enabled'] != 1:
+            continue
+
+        title = ''
+        logging.info('title pref {}'.format(title_pref))
+        if title_pref is None or title_pref == 'sequenceName':
+            logging.info('use sequence names')
+            if 'sequenceName' in song:
+                title = str(song['sequenceName'])
+            elif 'mediaName' in song:
+                title = str(song['mediaName'])
+            else:
+                title = 'Unknown'
+        else:
+            logging.info('use media names')
+            if 'mediaName' in song:
+                title = str(song['mediaName'])
+            elif 'sequenceName' in song:
+                title = str(song['sequenceName'])
+            else:
+                title = 'Unknown'
+
+        song_names.append({"id": idx, "title": title})
 
     payload = {
         'privateKey': private_key,
@@ -108,7 +131,7 @@ def load_songs(playlist_to_load):
 
         show_status = ''
         uploaded_song_name = ''
-        load_settings()
+        upload_settings()
     except Exception, e:
         logging.error('Problem loading songs: ' + str(e))
         retry_load_songs(playlist_to_load)
@@ -124,7 +147,7 @@ def retry_load_songs(playlist_to_load):
         time.sleep(load_song_tries * 10)
         return load_songs(playlist_to_load)
 
-def load_settings():
+def upload_settings():
     url = urlBase + "/v0/vote/upload-settings"
     headers = {
         'Content-Type': 'application/json'
@@ -143,6 +166,7 @@ def load_settings():
 
     logging.info(json.dumps(payload))
     response = requests.request("POST", url, headers=headers, data=json.dumps(payload), timeout=(10, 10))
+    cached_all_settings = all_settings
 
 
 def get_voting_results():
@@ -292,6 +316,14 @@ def get_setting_from_all_settings(setting, all_settings):
 
     return None
 
+def get_setting_from_cache(setting):
+    global cached_all_settings
+
+    if len(cached_all_settings) == 0:
+        cached_all_settings = get_all_settings()
+
+    return get_setting_from_all_settings(setting, cached_all_settings)
+
 def save_setting(setting, value):
     url = 'http://localhost/api/configfile/plugin.brp-voting'
 
@@ -407,7 +439,7 @@ argument = str(sys.argv[1])
 
 if argument == 'loadSettings':
     private_key = str(sys.argv[2])
-    load_settings()
+    upload_settings()
     exit(0)
 
 if argument == 'newPrivateKey':

@@ -4,8 +4,8 @@
 
 
 <?php
-#$path = "/home/fpp/media/plugins/fpp-vote-dev";
-$path = "/home/fpp/media/plugins/brp-fpp-voting";
+$path = "/home/fpp/media/plugins/fpp-vote-dev";
+#$path = "/home/fpp/media/plugins/brp-fpp-voting";
 
 function tailFile($filepath, $lines = 1) {
     return trim(implode("", array_slice(file($filepath), -$lines)));
@@ -166,13 +166,44 @@ if (isset($_POST['loadSettings'])) {
         getAllSettings(function (allSettings) {
             $('#votingMsg').val(getSettingFromAllSettings('votingMsg', allSettings));
             $('#currentSongVoting').prop('checked', getSettingFromAllSettings('allowCurrentSongVoting', allSettings) === 'true');
+
+            var pref = '#' + getSettingFromAllSettings('votingTitlePreference', allSettings);
+            if (pref) {
+                $(pref).prop("checked", true);
+            }
+
+            // Mark the plugin as being restarted
+            if (getSettingFromAllSettings('restartPlugin', allSettings) === 'true') {
+                $('#indicateRestart').show();
+
+                getAllSettings(function (allSettings) {
+                    allSettings = addSettingToAllSettings('restartPlugin', 'false', allSettings);
+                    $('#serviceState').submit(function (e) {
+                        saveSettings(allSettings, function () {
+                            console.log("Settings saved")
+                        })
+                    })
+                })
+            }
+
+            $('#loadingSettingsIndicator').hide();
         });
     }
 
     function savePluginSettings() {
+        $('#settingsSaveBtn').hide();
+        $('#savingSettingsIndicator').show();
         getAllSettings(function (allSettings){
             allSettings = addSettingToAllSettings('votingMsg', $('#votingMsg').val(), allSettings);
             allSettings = addSettingToAllSettings('allowCurrentSongVoting', $('#currentSongVoting').prop("checked") + '', allSettings);
+            var prefPrev = getSettingFromAllSettings('votingTitlePreference', allSettings);
+            var prefNow = $('input[name="votingTitlePreference"]:checked').val();
+
+            if (prefNow !== prefPrev) {
+                allSettings = addSettingToAllSettings('restartPlugin', 'true', allSettings);
+            }
+
+            allSettings = addSettingToAllSettings('votingTitlePreference', prefNow, allSettings);
             saveSettings(allSettings, function (data) {
                 $('#loadSettingsBtn').click();
             })
@@ -237,7 +268,7 @@ if (isset($_POST['loadSettings'])) {
         </tr>
 
         <div id="isServiceRunningDiv">
-            <form method="post">
+            <form method="post" id="serviceState">
                 <?php
                 if (isServiceRunning()) {
                     print("<tr>");
@@ -266,6 +297,7 @@ if (isset($_POST['loadSettings'])) {
             </div></td>
         </tr>
     </table>
+    <hr>
     <div>
         <p>Please help support the upkeep and cost of the server along with other projects we are working on!</p>
         <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
@@ -275,8 +307,11 @@ if (isset($_POST['loadSettings'])) {
             <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1" />
         </form>
     </div>
+    <hr>
     <h2>Settings</h2>
-    <table>
+    <div id="loadingSettingsIndicator">Loading... <span class="fa fa-spinner fa-spin"></span></div>
+    <h2 style='color:darkred;font-weight:bold; display: none;' id="indicateRestart">Please stop and then start the plugin for all of the settings to take effect</h2>
+    <table id="settingsTable">
         <tr>
             <td>Voting message <i class="fa fa-info-circle" aria-hidden="true" title="Sets the message voters will see at the top of the page while a playlist is playing"></i></td>
             <td><input id="votingMsg" placeholder="Vote for the next song!"/></td>
@@ -286,9 +321,36 @@ if (isset($_POST['loadSettings'])) {
             <td><input id="currentSongVoting" type="checkbox"/></td>
         </tr>
         <tr>
+            <td>Voting titles <i class="fa fa-info-circle" aria-hidden="true" title="This will either prefer the audio
+            name or the sequence name for the title displayed on the voting website. If either the sequence or media is
+            not available, it will fall back to the other. Underscores (e.g. '_') and the file extension (e.g. '.mp3')
+            will be stripped off by default on the voting website."></i></td>
+            <td>
+                <table>
+                    <tr>
+                        <td>
+                            <label for="sequenceName">Sequence Name</label>
+                        </td>
+                        <td>
+                            <input id="sequenceName" name="votingTitlePreference" type="radio" value="sequenceName" checked="checked" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <label for="audioName">Audio Name</label>
+                        </td>
+                        <td>
+                            <input id="audioName" name="votingTitlePreference" type="radio" value="audioName"/>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
             <td></td>
             <td>
                 <button class="button" id="settingsSaveBtn">Save</button>
+                <span id="savingSettingsIndicator" class="fa fa-spinner fa-spin" style="display: none;"></span>
                 <div id="submitSettings" hidden>
                     <form id="loadSettingsForm" method="post">
                         <input id="loadSettingsBtn"
