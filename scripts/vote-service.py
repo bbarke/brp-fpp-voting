@@ -14,6 +14,7 @@ plugin_version = '4'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
+public_api_key = ''
 next_song_to_play = ''
 next_song_to_play_id = ''
 playing_songs = True
@@ -34,7 +35,7 @@ def get_new_private_key():
         logging.error('could not generate a new private key')
         exit(0)
 
-    new_private_key = response.text.encode('utf-8')
+    new_private_key = response.text
     save_setting('privateKey', new_private_key )
     logging.info('Generated new private key: {}'.format(new_private_key))
     return new_private_key
@@ -44,6 +45,7 @@ def load_songs(playlist_to_load):
     global last_loaded_playlist
     global show_status
     global uploaded_song_name
+    global public_api_key
 
     if load_song_tries == 0:
         set_status('Loading Songs...')
@@ -123,7 +125,7 @@ def load_songs(playlist_to_load):
 
         load_song_tries = 0
 
-        public_api_key = response.text.encode('utf-8')
+        public_api_key = response.text
         logging.info("Public API key: " + public_api_key)
         save_setting('publicApiKey', public_api_key)
         set_status('Songs Loaded')
@@ -132,7 +134,7 @@ def load_songs(playlist_to_load):
         show_status = ''
         uploaded_song_name = ''
         upload_settings()
-    except Exception, e:
+    except Exception as e:
         logging.error('Problem loading songs: ' + str(e))
         retry_load_songs(playlist_to_load)
 
@@ -148,6 +150,7 @@ def retry_load_songs(playlist_to_load):
         return load_songs(playlist_to_load)
 
 def upload_settings():
+    global cached_all_settings
     url = urlBase + "/v0/vote/upload-settings"
     headers = {
         'Content-Type': 'application/json'
@@ -160,12 +163,15 @@ def upload_settings():
         'privateKey': private_key,
         'showSettings': {
             'votingMsg': get_setting_from_all_settings('votingMsg', all_settings),
-            'allowCurrentSongVoting': get_setting_from_all_settings('allowCurrentSongVoting', all_settings) == 'true'
+            'allowCurrentSongVoting': get_setting_from_all_settings('allowCurrentSongVoting', all_settings) == 'true',
+            'votingTitlePreference': get_setting_from_all_settings('votingTitlePreference', all_settings),
+            'snowing': get_setting_from_all_settings('snowing', all_settings)
         }
     }
 
     logging.info(json.dumps(payload))
     response = requests.request("POST", url, headers=headers, data=json.dumps(payload), timeout=(10, 10))
+
     cached_all_settings = all_settings
 
 
@@ -186,7 +192,7 @@ def get_voting_results():
         response = requests.request("POST", url, headers=headers, data=json.dumps(payload), timeout=(10, 10))
 
         if response.status_code == 404:
-            logging.info(response.text.encode('utf-8'))
+            logging.info(response.text)
             load_songs(last_loaded_playlist)
             return
 
@@ -196,14 +202,14 @@ def get_voting_results():
             next_song_to_play_id = '-1'
             return
 
-        title = response.json()['title'].encode('utf-8')
-        id = response.json()['id'].encode('utf-8')
+        title = response.json()['title']
+        id = response.json()['id']
 
         logging.info("Title of song to play next: " + title + " id: " + id)
         next_song_to_play = title
         next_song_to_play_id = id
 
-    except Exception, e:
+    except Exception as e:
         logging.error("Problem getting voting results! " + str(e))
         set_status('Problem getting voting results...')
         time.sleep(5)
@@ -217,18 +223,18 @@ def get_status():
     global status_iteration
 
     try:
-        url = "http://fpp.local:32322/fppd/status"
+        url = "http://127.0.0.1:32322/fppd/status"
         response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
 
         if response.status_code != 200:
-            logging.info(response.text.encode('utf-8'))
+            logging.info(response.text)
             logging.error("Something went wrong getting fpp status")
             set_status('Cant get current falcon player song status...')
             return
         json = response.json()
-        current_song = str(json['current_sequence'].encode('utf-8'))
+        current_song = str(json['current_sequence'])
         current_song_id = json['current_playlist']['index']
-        seconds_remaining = int(json['seconds_remaining'].encode('utf-8'))
+        seconds_remaining = int(json['seconds_remaining'])
         current_playlist = json['current_playlist']['playlist']
 
 
@@ -258,7 +264,7 @@ def get_status():
             load_songs(current_playlist)
             upload_now_playing(uploaded_song_name, uploaded_song_id)
 
-    # Check to see if our playlist changed
+        # Check to see if our playlist changed
         if current_playlist != last_loaded_playlist:
             logging.info("Playlist changed from '{}' to '{}'".format(last_loaded_playlist, current_playlist))
             load_songs(current_playlist)
@@ -274,7 +280,7 @@ def get_status():
             play_next_song_now()
             time.sleep(5)
 
-    except Exception, e:
+    except Exception as e:
         logging.error("Problem getting status! " + str(e))
 
 def play_next_song_now():
@@ -289,7 +295,7 @@ def play_next_song_now():
     set_status('Starting next song')
     logging.info('Play song now: {}, {}'.format(next_song_to_play_id, last_loaded_playlist))
 
-    url = 'http://fpp.local:32322/command/Start Playlist At Item/{}/{}/true'\
+    url = 'http://127.0.0.1:32322/command/Start Playlist At Item/{}/{}/true'\
         .format(last_loaded_playlist, next_song_to_play_id)
 
     r = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
@@ -297,11 +303,11 @@ def play_next_song_now():
     uploaded_song_name = ''
 
 def get_all_settings():
-    url = 'http://localhost/api/configfile/plugin.brp-voting'
+    url = 'http://127.0.0.1/api/configfile/plugin.brp-voting'
     response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
 
     if response.status_code == 200:
-        return response.text.encode('utf-8').splitlines()
+        return response.text.splitlines()
     else:
         logging.error('There was a problem getting all of the settings')
         return []
@@ -325,7 +331,7 @@ def get_setting_from_cache(setting):
     return get_setting_from_all_settings(setting, cached_all_settings)
 
 def save_setting(setting, value):
-    url = 'http://localhost/api/configfile/plugin.brp-voting'
+    url = 'http://127.0.0.1/api/configfile/plugin.brp-voting'
 
     all_settings = get_all_settings()
 
@@ -387,13 +393,14 @@ def check_show_uploaded():
     response = requests.request("POST", url, headers=headers, data=json.dumps(payload), timeout=(10, 10))
 
     if response.status_code == 404:
-        logging.info('Songs are not laoded, the server must have restarted. Upload them again')
+        logging.info('Songs are not loaded, the server must have restarted. Upload them again')
         load_songs(last_loaded_playlist)
 
 def upload_show_playing_status():
     global private_key
     global show_status
     global start_time
+    global public_api_key
 
     url = urlBase + "/v0/vote/current-show-status"
     headers = {
@@ -414,6 +421,12 @@ def upload_show_playing_status():
 
     if response.status_code == 404:
         load_songs(last_loaded_playlist)
+
+
+    if response.status_code == 200 and public_api_key == '':
+        public_api_key = response.text
+        logging.info("Setting public API key from now playing status: " + public_api_key)
+        save_setting('publicApiKey', public_api_key)
 
 def upload_now_playing(song_name, song_id):
     global private_key

@@ -25,7 +25,7 @@ function startService() {
 
     $privateKey = ReadSettingFromFile('privateKey', 'brp-voting');
     WriteSettingToFile("publicApiKey", "false", "brp-voting");
-    shell_exec("/usr/bin/python2.7 $path/scripts/vote-service.py $privateKey > /dev/null &");
+    shell_exec("/usr/bin/python3 $path/scripts/vote-service.py $privateKey > /dev/null &");
 }
 
 function killService() {
@@ -46,12 +46,12 @@ if (isset($_POST['killService'])) {
 }
 
 if (isset($_POST['generateNewKey'])) {
-    shell_exec("/usr/bin/python2.7 $path/scripts/vote-service.py newPrivateKey > /dev/null");
+    shell_exec("/usr/bin/python3 $path/scripts/vote-service.py newPrivateKey > /dev/null");
 }
 
 if (isset($_POST['loadSettings'])) {
     $privateKey = ReadSettingFromFile('privateKey', 'brp-voting');
-    shell_exec("/usr/bin/python2.7 $path/scripts/vote-service.py loadSettings $privateKey > /dev/null");
+    shell_exec("/usr/bin/python3 $path/scripts/vote-service.py loadSettings $privateKey > /dev/null");
 }
 
 ?>
@@ -158,7 +158,8 @@ if (isset($_POST['loadSettings'])) {
             clearInterval(voteUrlInterval);
             var href = 'https://barkersrandomprojects.com/vote/' + publicKey;
             $('#votingUrl').attr('href', href).text(href);
-            $('#votingUrlContainer').show();
+            $('#votingUrlSpinner').hide();
+            $('#votingUrl').show();
         });
     }
 
@@ -166,6 +167,7 @@ if (isset($_POST['loadSettings'])) {
         getAllSettings(function (allSettings) {
             $('#votingMsg').val(getSettingFromAllSettings('votingMsg', allSettings));
             $('#currentSongVoting').prop('checked', getSettingFromAllSettings('allowCurrentSongVoting', allSettings) === 'true');
+            $('#snowing').prop('checked', getSettingFromAllSettings('snowing', allSettings) === 'true');
 
             var pref = '#' + getSettingFromAllSettings('votingTitlePreference', allSettings);
             if (pref) {
@@ -196,6 +198,7 @@ if (isset($_POST['loadSettings'])) {
         getAllSettings(function (allSettings){
             allSettings = addSettingToAllSettings('votingMsg', $('#votingMsg').val(), allSettings);
             allSettings = addSettingToAllSettings('allowCurrentSongVoting', $('#currentSongVoting').prop("checked") + '', allSettings);
+            allSettings = addSettingToAllSettings('snowing', $('#snowing').prop("checked") + '', allSettings);
             var prefPrev = getSettingFromAllSettings('votingTitlePreference', allSettings);
             var prefNow = $('input[name="votingTitlePreference"]:checked').val();
 
@@ -278,7 +281,13 @@ if (isset($_POST['loadSettings'])) {
                     print("</tr>");
 
                     print('<tr id="currentStatusDiv" hidden><td>Current status:</td><td id="status"></td></tr>');
-                    print ('<script>monitorStatus()</script>');
+                    print('<script>monitorStatus()</script>');
+                    print('
+                          <tr>
+                            <td colspan="2">Your unique voting URL is: <a id="votingUrl" target="_blank" hidden></a> <span id="votingUrlSpinner" class="fa fa-circle-o-notch fa-spin">
+                            </td>
+                          </tr>
+                          ');
 
                 } else {
                     print("<tr>");
@@ -290,12 +299,6 @@ if (isset($_POST['loadSettings'])) {
                 ?>
             </form>
         </div>
-        <tr>
-            <td colspan="2">
-            <div id="votingUrlContainer" hidden>
-                Your unique voting URL is: <a id="votingUrl" target="_blank"></a>
-            </div></td>
-        </tr>
     </table>
     <hr>
     <div>
@@ -309,7 +312,7 @@ if (isset($_POST['loadSettings'])) {
     </div>
     <hr>
     <h2>Settings</h2>
-    <div id="loadingSettingsIndicator">Loading... <span class="fa fa-spinner fa-spin"></span></div>
+    <div id="loadingSettingsIndicator">Loading... <span class="fa fa-circle-o-notch fa-spin"></span></div>
     <h2 style='color:darkred;font-weight:bold; display: none;' id="indicateRestart">Please stop and then start the plugin for all of the settings to take effect</h2>
     <table id="settingsTable">
         <tr>
@@ -347,10 +350,14 @@ if (isset($_POST['loadSettings'])) {
             </td>
         </tr>
         <tr>
+            <td>Snowing Theme <i class="fa fa-info-circle" aria-hidden="true" title="Creates a 'Snowing' effect on the voting website"></i></td>
+            <td><input id="snowing" type="checkbox"/></td>
+        </tr>
+        <tr>
             <td></td>
             <td>
                 <button class="button" id="settingsSaveBtn">Save</button>
-                <span id="savingSettingsIndicator" class="fa fa-spinner fa-spin" style="display: none;"></span>
+                <span id="savingSettingsIndicator" class="fa fa-circle-o-notch fa-spin" style="display: none;"></span>
                 <div id="submitSettings" hidden>
                     <form id="loadSettingsForm" method="post">
                         <input id="loadSettingsBtn"
