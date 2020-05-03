@@ -4,8 +4,8 @@
 
 
 <?php
-$path = "/home/fpp/media/plugins/fpp-vote-dev";
-#$path = "/home/fpp/media/plugins/brp-fpp-voting";
+#$path = "/home/fpp/media/plugins/fpp-vote-dev";
+$path = "/home/fpp/media/plugins/brp-fpp-voting";
 
 function tailFile($filepath, $lines = 1) {
     return trim(implode("", array_slice(file($filepath), -$lines)));
