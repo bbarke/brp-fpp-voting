@@ -12,7 +12,7 @@ urlBase = 'https://barkersrandomprojects.com/api'
 
 plugin_version = '6'
 
-logging.basicConfig(level=logging.INFOq, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
 public_api_key = ''
 next_song_to_play = ''
