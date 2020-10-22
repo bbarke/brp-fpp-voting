@@ -10,9 +10,9 @@ import re
 #urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '5'
+plugin_version = '6'
 
-logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFOq, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
 public_api_key = ''
 next_song_to_play = ''
@@ -39,6 +39,26 @@ def get_new_private_key():
     save_setting('privateKey', new_private_key )
     logging.info('Generated new private key: {}'.format(new_private_key))
     return new_private_key
+
+def resolve_public_key():
+    global public_api_key
+
+    payload = {
+        'privateKey': private_key,
+    }
+
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    response = requests.request("POST", urlBase + '/v0/vote/resolve-public-key', headers=headers, data=json.dumps(payload), timeout=(10, 10))
+
+    if response.status_code != 200:
+        logging.error('Could not obtain the public api key')
+        return
+
+    public_api_key = response.text
+    save_public_api_key()
 
 def load_songs(playlist_to_load):
     global load_song_tries
@@ -127,7 +147,7 @@ def load_songs(playlist_to_load):
 
         public_api_key = response.text
         logging.info("Public API key: " + public_api_key)
-        save_setting('publicApiKey', public_api_key)
+        save_public_api_key()
         set_status('Songs Loaded')
         last_loaded_playlist = playlist_to_load
 
@@ -140,14 +160,9 @@ def load_songs(playlist_to_load):
 
 def retry_load_songs(playlist_to_load):
     global load_song_tries
-    if load_song_tries > 10:
-        logging.error('Tried several times to upload songs, quitting...')
-        set_status('Problem uploading songs to server. Please try restarting the service soon')
-        sys.exit(1)
-    else:
-        load_song_tries += 1
-        time.sleep(load_song_tries * 10)
-        return load_songs(playlist_to_load)
+    load_song_tries += 1
+    time.sleep(60)
+    return load_songs(playlist_to_load)
 
 def upload_settings():
     global cached_all_settings
@@ -243,6 +258,7 @@ def get_status():
 
         current_show_status = int(json['status'])
 
+
         start_time = json['next_playlist']['start_time']
 
         if status_iteration >= 60:
@@ -252,6 +268,9 @@ def get_status():
         if current_show_status != show_status:
             show_status = current_show_status
             upload_show_playing_status()
+
+        if public_api_key == '':
+            resolve_public_key()
 
         if current_show_status != 1:
             logging.debug('Not currently playing songs')
@@ -359,6 +378,10 @@ def save_setting(setting, value):
 
     response = requests.request("POST", url, headers={}, data=body, timeout=(10, 10))
 
+def save_public_api_key():
+    global public_api_key
+    save_setting('publicApiKey', public_api_key)
+
 def set_status(status):
     save_setting('status', status)
 
@@ -426,7 +449,7 @@ def upload_show_playing_status():
     if response.status_code == 200 and public_api_key == '':
         public_api_key = response.text
         logging.info("Setting public API key from now playing status: " + public_api_key)
-        save_setting('publicApiKey', public_api_key)
+        save_public_api_key()
 
 def upload_now_playing(song_name, song_id):
     global private_key

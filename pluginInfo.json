@@ -1,15 +1,15 @@
 {
 	"repoName": "brp-fpp-voting",
-	"name": "BRP Voting - Plugin for Falcon Player",
+	"name": "BRP Voting - Song Voting Plugin for Falcon Player",
 	"author": "Brent Barker, Barkers Random Projects",
-	"description": "Provides the option to allow light viewers to vote for the next song to play",
+	"description": "Provides the option to allow show viewers to vote for the next song to play",
 	"homeURL": "https://github.com/bbarke/brp-fpp-voting",
 	"srcURL": "https://github.com/bbarke/brp-fpp-voting.git",
 	"bugURL": "https://github.com/bbarke/brp-fpp-voting/issues",
 	"allowUpdates": 1,
 	"versions": [
 		{
-			"minFPPVersion": "0",
+			"minFPPVersion": "3.5.7",
 			"maxFPPVersion": "0",
 			"branch": "master",
 			"sha": "",

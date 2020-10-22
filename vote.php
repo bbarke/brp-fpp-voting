@@ -4,7 +4,6 @@
 
 
 <?php
-#$path = "/home/fpp/media/plugins/fpp-vote-dev";
 $path = "/home/fpp/media/plugins/brp-fpp-voting";
 
 function tailFile($filepath, $lines = 1) {
@@ -56,7 +55,7 @@ if (isset($_POST['loadSettings'])) {
 
 ?>
 
-<script src="https://kit.fontawesome.com/4b00e40eba.js"></script>
+<script src="https://kit.fontawesome.com/4b00e40eba.js" crossorigin="anonymous"></script>
 <script>
     var voteUrlInterval;
 
@@ -83,7 +82,7 @@ if (isset($_POST['loadSettings'])) {
             type: 'GET',
             url: url,
             success: function (data) {
-                console.log(JSON.stringify(data));
+                console.log("configs: " + JSON.stringify(data));
                 var allSettings = data.split('\n');
                 callback(allSettings)
             }
@@ -138,8 +137,9 @@ if (isset($_POST['loadSettings'])) {
         getSetting('privateKey', function (data) {
             var privateKey = data;
 
-            if (privateKey === false) {
+            if (privateKey === false || privateKey === null) {
                 $('#keyDisabled').val('You need to generate a new key');
+                $('#startServiceSection').hide();
                 return;
             }
 
@@ -284,13 +284,13 @@ if (isset($_POST['loadSettings'])) {
                     print('<script>monitorStatus()</script>');
                     print('
                           <tr>
-                            <td colspan="2">Your unique voting URL is: <a id="votingUrl" target="_blank" hidden></a> <span id="votingUrlSpinner" class="fa fa-circle-o-notch fa-spin">
+                            <td colspan="2">Your unique voting URL is: <a id="votingUrl" target="_blank" hidden></a> <i id="votingUrlSpinner" class="fas fa-circle-notch fa-spin"></i>
                             </td>
                           </tr>
                           ');
 
                 } else {
-                    print("<tr>");
+                    print("<tr id='startServiceSection'>");
                     print("<td style='color:darkred;font-weight:bold;'>Service is not running!</td>");
                     print('<td><input id="startSvcBtn" class="button" name="startService" type="submit" value="Start Service"/></td>');
                     print("</tr>");
@@ -312,7 +312,7 @@ if (isset($_POST['loadSettings'])) {
     </div>
     <hr>
     <h2>Settings</h2>
-    <div id="loadingSettingsIndicator">Loading... <span class="fa fa-circle-o-notch fa-spin"></span></div>
+    <div id="loadingSettingsIndicator">Loading... <i class="fas fa-circle-notch fa-spin"></i></div>
     <h2 style='color:darkred;font-weight:bold; display: none;' id="indicateRestart">Please stop and then start the plugin for all of the settings to take effect</h2>
     <table id="settingsTable">
         <tr>
@@ -357,7 +357,7 @@ if (isset($_POST['loadSettings'])) {
             <td></td>
             <td>
                 <button class="button" id="settingsSaveBtn">Save</button>
-                <span id="savingSettingsIndicator" class="fa fa-circle-o-notch fa-spin" style="display: none;"></span>
+                <span id="savingSettingsIndicator" class="fas fa-circle-notch fa-spin" style="display: none;"></span>
                 <div id="submitSettings" hidden>
                     <form id="loadSettingsForm" method="post">
                         <input id="loadSettingsBtn"
