@@ -236,8 +236,12 @@ if (isset($_POST['loadSettings'])) {
     }
     setPrivateKeyField();
     $( function() {
-        $('#brp-div').tooltip();
-    } );
+        $('#brp-div').tooltip({
+            "content": function(){
+                return $(this).attr('data-title');
+            }
+        });
+    });
 </script>
 <style>
     .ui-tooltip {
@@ -316,15 +320,15 @@ if (isset($_POST['loadSettings'])) {
     <h2 style='color:darkred;font-weight:bold; display: none;' id="indicateRestart">Please stop and then start the plugin for all of the settings to take effect</h2>
     <table id="settingsTable">
         <tr>
-            <td>Voting message <i class="fa fa-info-circle" aria-hidden="true" title="Sets the message voters will see at the top of the page while a playlist is playing"></i></td>
+            <td>Voting message <i class="fa fa-info-circle" title="" data-title="Sets the message voters will see at the top of the page while a playlist is playing"></i></td>
             <td><input id="votingMsg" placeholder="Vote for the next song!"/></td>
         </tr>
         <tr>
-            <td>Allow voting for current song <i class="fa fa-info-circle" aria-hidden="true" title="This will allow the voters to vote for the current playing song, potentially playing the same song multiple times in a row"></i></td>
+            <td>Allow voting for current song <i class="fa fa-info-circle" aria-hidden="true" title="" data-title="This will allow the voters to vote for the current playing song, potentially playing the same song multiple times in a row"></i></td>
             <td><input id="currentSongVoting" type="checkbox"/></td>
         </tr>
         <tr>
-            <td>Voting titles <i class="fa fa-info-circle" aria-hidden="true" title="This will either prefer the audio
+            <td>Voting titles <i class="fa fa-info-circle" aria-hidden="true" title="" data-title="This will either prefer the audio
             name or the sequence name for the title displayed on the voting website. If either the sequence or media is
             not available, it will fall back to the other. Underscores (e.g. '_') and the file extension (e.g. '.mp3')
             will be stripped off by default on the voting website."></i></td>
@@ -350,7 +354,7 @@ if (isset($_POST['loadSettings'])) {
             </td>
         </tr>
         <tr>
-            <td>Snowing Theme <i class="fa fa-info-circle" aria-hidden="true" title="Creates a 'Snowing' effect on the voting website"></i></td>
+            <td>Snowing Theme <i class="fa fa-info-circle" title="" data-title="Creates a 'Snowing' effect on the voting website"></i></td>
             <td><input id="snowing" type="checkbox"/></td>
         </tr>
         <tr>
