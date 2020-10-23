@@ -10,7 +10,7 @@ import re
 #urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '6'
+plugin_version = '7'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
@@ -92,7 +92,8 @@ def load_songs(playlist_to_load):
     lead_in_songs = 1
 
     if 'leadIn' in data:
-        lead_in_songs = len(data['leadIn'])
+        # we start at index 1 and move up from there. Anything inside of the leadIn list should be added.
+        lead_in_songs += len(data['leadIn'])
         logging.info('Has lead in with {} song(s)'.format(lead_in_songs))
 
     title_pref = get_setting_from_cache('votingTitlePreference')
@@ -118,7 +119,6 @@ def load_songs(playlist_to_load):
                 title = str(song['sequenceName'])
             else:
                 title = 'Unknown'
-
         song_names.append({"id": idx, "title": title})
 
     payload = {
