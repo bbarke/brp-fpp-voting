@@ -6,11 +6,14 @@ import json
 import time
 import os
 import re
+from crontab import CronTab
 
-#urlBase = 'http://192.168.7.58:8092'
+
+
+# urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '7'
+plugin_version = '8'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
@@ -37,7 +40,13 @@ def get_new_private_key():
 
     new_private_key = response.text
     save_setting('privateKey', new_private_key )
+
     logging.info('Generated new private key: {}'.format(new_private_key))
+
+    # Turn on launch on reboot by default to avoid race conditions
+    save_setting('launchOnReboot', 'true' )
+    launch_on_reboot()
+
     return new_private_key
 
 def resolve_public_key():
@@ -173,6 +182,12 @@ def upload_settings():
 
     all_settings = get_all_settings()
     logging.info(all_settings)
+    launch_on_reboot_setting = get_setting_from_all_settings('launchOnReboot', all_settings)
+
+    if launch_on_reboot_setting == 'true':
+        launch_on_reboot()
+    else:
+        remove_launch_on_reboot()
 
     payload = {
         'privateKey': private_key,
@@ -180,7 +195,9 @@ def upload_settings():
             'votingMsg': get_setting_from_all_settings('votingMsg', all_settings),
             'allowCurrentSongVoting': get_setting_from_all_settings('allowCurrentSongVoting', all_settings) == 'true',
             'votingTitlePreference': get_setting_from_all_settings('votingTitlePreference', all_settings),
-            'snowing': get_setting_from_all_settings('snowing', all_settings)
+            'snowing': get_setting_from_all_settings('snowing', all_settings),
+            'launchOnReboot': launch_on_reboot_setting == 'true',
+            'backgroundImage': get_setting_from_all_settings('backgroundImage', all_settings),
         }
     }
 
@@ -470,6 +487,28 @@ def upload_now_playing(song_name, song_id):
     if response.status_code == 404:
         load_songs(last_loaded_playlist)
         upload_now_playing(song_name, song_id)
+
+def get_cron_comment():
+    return 'brp-fpp-voting-cron-job'
+
+def get_cron_command():
+    return '/usr/bin/python3 /home/fpp/media/plugins/brp-fpp-voting/scripts/vote-service.py {} > /dev/null &'.format(private_key)
+
+def launch_on_reboot():
+
+    remove_launch_on_reboot()
+
+    cron = CronTab(user=True)
+    command = get_cron_command()
+    logging.info('Adding cron job to load voting service on reboot. Command: {}'.format(command))
+    job = cron.new(command=command, comment=get_cron_comment())
+    job.every_reboot()
+    cron.write()
+
+def remove_launch_on_reboot():
+    cron = CronTab(user=True)
+    cron.remove_all(comment=get_cron_comment())
+    cron.write()
 
 argument = str(sys.argv[1])
 
