@@ -13,7 +13,7 @@ from crontab import CronTab
 # urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '8'
+plugin_version = '9'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
