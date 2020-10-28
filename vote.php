@@ -85,6 +85,9 @@ if (isset($_POST['loadSettings'])) {
                 console.log("configs: " + JSON.stringify(data));
                 var allSettings = data.split('\n');
                 callback(allSettings)
+            },
+            error: function () {
+                callback('')
             }
         });
     }
@@ -168,6 +171,8 @@ if (isset($_POST['loadSettings'])) {
             $('#votingMsg').val(getSettingFromAllSettings('votingMsg', allSettings));
             $('#currentSongVoting').prop('checked', getSettingFromAllSettings('allowCurrentSongVoting', allSettings) === 'true');
             $('#snowing').prop('checked', getSettingFromAllSettings('snowing', allSettings) === 'true');
+            $('#launchOnReboot').prop('checked', getSettingFromAllSettings('launchOnReboot', allSettings) === 'true');
+            $('#backgroundImage').val(getSettingFromAllSettings('backgroundImage', allSettings));
 
             var pref = '#' + getSettingFromAllSettings('votingTitlePreference', allSettings);
             if (pref) {
@@ -199,6 +204,7 @@ if (isset($_POST['loadSettings'])) {
             allSettings = addSettingToAllSettings('votingMsg', $('#votingMsg').val(), allSettings);
             allSettings = addSettingToAllSettings('allowCurrentSongVoting', $('#currentSongVoting').prop("checked") + '', allSettings);
             allSettings = addSettingToAllSettings('snowing', $('#snowing').prop("checked") + '', allSettings);
+            allSettings = addSettingToAllSettings('launchOnReboot', $('#launchOnReboot').prop("checked") + '', allSettings);
             var prefPrev = getSettingFromAllSettings('votingTitlePreference', allSettings);
             var prefNow = $('input[name="votingTitlePreference"]:checked').val();
 
@@ -207,6 +213,8 @@ if (isset($_POST['loadSettings'])) {
             }
 
             allSettings = addSettingToAllSettings('votingTitlePreference', prefNow, allSettings);
+            allSettings = addSettingToAllSettings('backgroundImage', $('#backgroundImage option').filter(':selected').val(), allSettings);
+
             saveSettings(allSettings, function (data) {
                 $('#loadSettingsBtn').click();
             })
@@ -354,8 +362,23 @@ if (isset($_POST['loadSettings'])) {
             </td>
         </tr>
         <tr>
+            <td>Launch On Reboot <i class="fa fa-info-circle" title="" data-title="If Falcon Player is rebooted, this will enable the voting plugin to auto restart"></i></td>
+            <td><input id="launchOnReboot" type="checkbox"/></td>
+        </tr>
+        <tr>
             <td>Snowing Theme <i class="fa fa-info-circle" title="" data-title="Creates a 'Snowing' effect on the voting website"></i></td>
             <td><input id="snowing" type="checkbox"/></td>
+        </tr>
+        <tr>
+            <td>Background Image <i class="fa fa-info-circle" title="" data-title="Changes the background image shown on the voting website"></i></td>
+            <td>
+                <select id="backgroundImage">
+                    <option value="NONE">-- None --</option>
+                    <option value="PUMPKIN">Pumpkin</option>
+                    <option value="PUMPKIN_HAPPY">Pumpkin Happy</option>
+                    <option value="PUMPKIN_SCARY">Pumpkin Scary</option>
+                </select>
+            </td>
         </tr>
         <tr>
             <td></td>
