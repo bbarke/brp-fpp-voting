@@ -13,7 +13,7 @@ from crontab import CronTab
 # urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '10'
+plugin_version = '11'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
@@ -198,6 +198,9 @@ def upload_settings():
             'snowing': get_setting_from_all_settings('snowing', all_settings),
             'launchOnReboot': launch_on_reboot_setting == 'true',
             'backgroundImage': get_setting_from_all_settings('backgroundImage', all_settings),
+            'backgroundGradientFirst': get_setting_from_all_settings('backgroundGradientFirst', all_settings),
+            'backgroundGradientSecond': get_setting_from_all_settings('backgroundGradientSecond', all_settings),
+            'fontColorHeader': get_setting_from_all_settings('fontColorHeader', all_settings),
         }
     }
 
