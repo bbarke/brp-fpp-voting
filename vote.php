@@ -56,6 +56,9 @@ if (isset($_POST['loadSettings'])) {
 ?>
 
 <script src="https://kit.fontawesome.com/4b00e40eba.js" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://barkersrandomprojects.com/assets/lib/color-wheel/jquery.wheelcolorpicker.min.js"></script>
+<link type="text/css" rel="stylesheet" href="https://barkersrandomprojects.com/assets/lib/color-wheel/wheelcolorpicker.css"/>
+
 <script>
     var voteUrlInterval;
 
@@ -174,6 +177,21 @@ if (isset($_POST['loadSettings'])) {
             $('#launchOnReboot').prop('checked', getSettingFromAllSettings('launchOnReboot', allSettings) === 'true');
             $('#backgroundImage').val(getSettingFromAllSettings('backgroundImage', allSettings));
 
+            var backgroundGradientFirst = getSettingFromAllSettings('backgroundGradientFirst', allSettings);
+            if (backgroundGradientFirst) {
+                $('#backgroundGradientFirst').wheelColorPicker('setValue', backgroundGradientFirst);
+            }
+
+            var backgroundGradientSecond = getSettingFromAllSettings('backgroundGradientSecond', allSettings)
+            if (backgroundGradientSecond) {
+                $('#backgroundGradientSecond').wheelColorPicker('setValue', backgroundGradientSecond);
+            }
+
+            var fontColorHeader = getSettingFromAllSettings('fontColorHeader', allSettings);
+            if (fontColorHeader) {
+                $('#fontColorHeader').wheelColorPicker('setValue', fontColorHeader);
+            }
+
             var pref = '#' + getSettingFromAllSettings('votingTitlePreference', allSettings);
             if (pref) {
                 $(pref).prop("checked", true);
@@ -214,6 +232,9 @@ if (isset($_POST['loadSettings'])) {
 
             allSettings = addSettingToAllSettings('votingTitlePreference', prefNow, allSettings);
             allSettings = addSettingToAllSettings('backgroundImage', $('#backgroundImage option').filter(':selected').val(), allSettings);
+            allSettings = addSettingToAllSettings('backgroundGradientFirst', $('#backgroundGradientFirst').val(), allSettings);
+            allSettings = addSettingToAllSettings('backgroundGradientSecond', $('#backgroundGradientSecond').val(), allSettings);
+            allSettings = addSettingToAllSettings('fontColorHeader', $('#fontColorHeader').val(), allSettings);
 
             saveSettings(allSettings, function (data) {
                 $('#loadSettingsBtn').click();
@@ -247,6 +268,33 @@ if (isset($_POST['loadSettings'])) {
         $('#brp-div').tooltip({
             "content": function(){
                 return $(this).attr('data-title');
+            }
+        });
+    });
+    // color wheels
+    $(function() {
+        $('#backgroundGradientFirstPalette').on('change', function() {
+            if ($(this).val() === '--') {
+                $('#backgroundGradientFirst').wheelColorPicker('setValue', 'ffffff');
+                $('#backgroundGradientFirst').val('');
+            } else {
+                $('#backgroundGradientFirst').wheelColorPicker('setValue', $(this).val());
+            }
+        });
+        $('#backgroundGradientSecondPalette').on('change', function() {
+            if ($(this).val() === '--') {
+                $('#backgroundGradientSecond').wheelColorPicker('setValue', 'ffffff');
+                $('#backgroundGradientSecond').val('');
+            } else {
+                $('#backgroundGradientSecond').wheelColorPicker('setValue', $(this).val());
+            }
+        });
+        $('#fontColorHeaderPalette').on('change', function() {
+            if ($(this).val() === '--') {
+                $('#fontColorHeader').wheelColorPicker('setValue', 'ffffff');
+                $('#fontColorHeader').val('');
+            } else {
+                $('#fontColorHeader').wheelColorPicker('setValue', $(this).val());
             }
         });
     });
@@ -374,9 +422,80 @@ if (isset($_POST['loadSettings'])) {
             <td>
                 <select id="backgroundImage">
                     <option value="NONE">-- None --</option>
+                    <option value="SNOWMAN">Snowman</option>
+                    <option value="SNOWMAN_WITH_GLOVES">Snowman With Gloves</option>
+                    <option value="NATIVITY">Nativity</option>
                     <option value="PUMPKIN">Pumpkin</option>
                     <option value="PUMPKIN_HAPPY">Pumpkin Happy</option>
                     <option value="PUMPKIN_SCARY">Pumpkin Scary</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td>Background Gradient <i class="fa fa-info-circle" title="" data-title="Changes the background color shown on the voting website.
+If two colors are picked, then a gradient will be displayed.<br><br>Click into the input box to activate a color picker, or use the dropdown next to the input
+box to select one of many predefined colors."></i></td>
+            <td>
+                <table>
+                    <tr>
+                        <td>Primary Color</td>
+                        <td>
+                            <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="backgroundGradientFirst">
+                            Predefined colors:
+                            <select id="backgroundGradientFirstPalette">
+                                <option>--</option>
+                                <option value="#ffffff" style="background: #ffffff;">White</option>
+                                <option value="#fce94f" style="background: #fce94f;">Butter</option>
+                                <option value="#fcaf3e" style="background: #fcaf3e;">Orange</option>
+                                <option value="#e9b96e" style="background: #e9b96e;">Chocolate</option>
+                                <option value="#8ae234" style="background: #8ae234;">Chameleon</option>
+                                <option value="#729fcf" style="background: #729fcf;">Sky blue</option>
+                                <option value="#ad7fa8" style="background: #ad7fa8;">Plum</option>
+                                <option value="#ef2929" style="background: #ef2929;">Scarlet red</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Secondary Color
+                        </td>
+                        <td>
+                        <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="backgroundGradientSecond">
+                            Predefined colors:
+                            <select id="backgroundGradientSecondPalette">
+                                <option>--</option>
+                                <option value="#ffffff" style="background: #ffffff;">White</option>
+                                <option value="#fce94f" style="background: #fce94f;">Butter</option>
+                                <option value="#fcaf3e" style="background: #fcaf3e;">Orange</option>
+                                <option value="#e9b96e" style="background: #e9b96e;">Chocolate</option>
+                                <option value="#8ae234" style="background: #8ae234;">Chameleon</option>
+                                <option value="#729fcf" style="background: #729fcf;">Sky blue</option>
+                                <option value="#ad7fa8" style="background: #ad7fa8;">Plum</option>
+                                <option value="#ef2929" style="background: #ef2929;">Scarlet red</option>
+                            </select>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td>Header Text Color <i class="fa fa-info-circle" title="" data-title="Changes color of the header text
+<br><br>Click into the input box to activate a color picker, or use the dropdown next to the input
+box to select one of many predefined colors."></i></td>
+            <td>
+                <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="fontColorHeader">
+                Predefined colors:
+                <select id="fontColorHeaderPalette">
+                    <option>--</option>
+                    <option value="#000000" style="background: #000000; color: #cacaca">Black</option>
+                    <option value="#ffffff" style="background: #ffffff;">White</option>
+                    <option value="#fce94f" style="background: #fce94f;">Butter</option>
+                    <option value="#fcaf3e" style="background: #fcaf3e;">Orange</option>
+                    <option value="#e9b96e" style="background: #e9b96e;">Chocolate</option>
+                    <option value="#8ae234" style="background: #8ae234;">Chameleon</option>
+                    <option value="#729fcf" style="background: #729fcf;">Sky blue</option>
+                    <option value="#ad7fa8" style="background: #ad7fa8;">Plum</option>
+                    <option value="#ef2929" style="background: #ef2929;">Scarlet red</option>
                 </select>
             </td>
         </tr>
