@@ -172,8 +172,16 @@ if (isset($_POST['loadSettings'])) {
     function fillPluginSettings() {
         getAllSettings(function (allSettings) {
             $('#votingMsg').val(getSettingFromAllSettings('votingMsg', allSettings));
+            var re = new RegExp('\\\\n', 'gm');
+            var votingHtml = getSettingFromAllSettings('votingMsgHtml', allSettings);
+            if (votingHtml) {
+                votingHtml = votingHtml.replace(re, "\n");
+            }
+
+            $('#votingMsgHtml').val(votingHtml);
             $('#currentSongVoting').prop('checked', getSettingFromAllSettings('allowCurrentSongVoting', allSettings) === 'true');
             $('#snowing').prop('checked', getSettingFromAllSettings('snowing', allSettings) === 'true');
+            $('#allowDuplicateVotes').prop('checked', getSettingFromAllSettings('allowDuplicateVotes', allSettings) === 'true');
             $('#launchOnReboot').prop('checked', getSettingFromAllSettings('launchOnReboot', allSettings) === 'true');
             $('#backgroundImage').val(getSettingFromAllSettings('backgroundImage', allSettings));
 
@@ -220,8 +228,12 @@ if (isset($_POST['loadSettings'])) {
         $('#savingSettingsIndicator').show();
         getAllSettings(function (allSettings){
             allSettings = addSettingToAllSettings('votingMsg', $('#votingMsg').val(), allSettings);
+            var re = new RegExp(/\n/, 'g');
+            var votingMsgHtml = $('#votingMsgHtml').val().replace(re, '\\n');
+            allSettings = addSettingToAllSettings('votingMsgHtml', votingMsgHtml, allSettings);
             allSettings = addSettingToAllSettings('allowCurrentSongVoting', $('#currentSongVoting').prop("checked") + '', allSettings);
             allSettings = addSettingToAllSettings('snowing', $('#snowing').prop("checked") + '', allSettings);
+            allSettings = addSettingToAllSettings('allowDuplicateVotes', $('#allowDuplicateVotes').prop("checked") + '', allSettings);
             allSettings = addSettingToAllSettings('launchOnReboot', $('#launchOnReboot').prop("checked") + '', allSettings);
             var prefPrev = getSettingFromAllSettings('votingTitlePreference', allSettings);
             var prefNow = $('input[name="votingTitlePreference"]:checked').val();
@@ -235,6 +247,7 @@ if (isset($_POST['loadSettings'])) {
             allSettings = addSettingToAllSettings('backgroundGradientFirst', $('#backgroundGradientFirst').val(), allSettings);
             allSettings = addSettingToAllSettings('backgroundGradientSecond', $('#backgroundGradientSecond').val(), allSettings);
             allSettings = addSettingToAllSettings('fontColorHeader', $('#fontColorHeader').val(), allSettings);
+            allSettings = addSettingToAllSettings('clearStats', $('#clearStats').prop("checked") + '', allSettings);
 
             saveSettings(allSettings, function (data) {
                 $('#loadSettingsBtn').click();
@@ -380,6 +393,10 @@ if (isset($_POST['loadSettings'])) {
             <td><input id="votingMsg" placeholder="Vote for the next song!"/></td>
         </tr>
         <tr>
+            <td>Voting message using HTML<i class="fa fa-info-circle" title="" data-title="Sets the message voters will see at the top of the page, allowing the flexiblilty of using HTML"></i></td>
+            <td><textarea id="votingMsgHtml"  rows="6" cols="80" placeholder="<h2>Vote for the next song!</h2>"></textarea></td>
+        </tr>
+        <tr>
             <td>Allow voting for current song <i class="fa fa-info-circle" aria-hidden="true" title="" data-title="This will allow the voters to vote for the current playing song, potentially playing the same song multiple times in a row"></i></td>
             <td><input id="currentSongVoting" type="checkbox"/></td>
         </tr>
@@ -416,6 +433,10 @@ if (isset($_POST['loadSettings'])) {
         <tr>
             <td>Snowing Theme <i class="fa fa-info-circle" title="" data-title="Creates a 'Snowing' effect on the voting website"></i></td>
             <td><input id="snowing" type="checkbox"/></td>
+        </tr>
+        <tr>
+            <td>Allow Duplicate Votes <i class="fa fa-info-circle" title="" data-title="Allows the same person to vote multiple times"></i></td>
+            <td><input id="allowDuplicateVotes" type="checkbox"/></td>
         </tr>
         <tr>
             <td>Background Image <i class="fa fa-info-circle" title="" data-title="Changes the background image shown on the voting website"></i></td>
@@ -500,6 +521,10 @@ box to select one of many predefined colors."></i></td>
             </td>
         </tr>
         <tr>
+            <td>Clear Song Stats <i class="fa fa-info-circle" title="" data-title="Clears out all of the song Statistics"></i></td>
+            <td><input id="clearStats" type="checkbox"/></td>
+        </tr>
+        <tr>
             <td></td>
             <td>
                 <button class="button" id="settingsSaveBtn">Save</button>
@@ -522,4 +547,36 @@ box to select one of many predefined colors."></i></td>
         });
         fillPluginSettings()
     </script>
+    <hr>
+    <h2>Song Statistics</h2>
+    <p>Refresh your page to see updates. Updates will occur about once every minute</p>
+    <p>This is to give some kind of insight on what is currently being voted on. Next season this will change to look
+    much nicer, and be much more robust!</p>
+    <?php
+    include('brp-db-connect.php');
+    $db = new BrpDbConnect();
+    echo '<table border="1">';
+    echo '<tr>';
+//    echo '<td>Database id</td>';
+    echo '<td>Song id</td>';
+    echo '<td>Song Name</td>';
+    echo '<td>Votes</td>';
+    echo '</tr>';
+    $count = $db->querySingle("SELECT COUNT(*) as count FROM song_stats");
+    if ($count === 0) {
+        echo '<tr><td colspan="3">No song votes have been recorded</td></tr>';
+    } else {
+        $result = $db->query('SELECT * FROM song_stats order by song_id');
+        while($row = $result->fetchArray()){
+            echo '<tr>';
+//        echo '<td>'.$row['id'].'</td>';
+            echo '<td>'.$row['song_id'].'</td>';
+            echo '<td>'.$row['song_name'].'</td>';
+            echo '<td>'.$row['votes'].'</td>';
+            echo '</tr>';
+        }
+    }
+    echo '</table>';
+    $db->close();
+    ?>
 </div>
