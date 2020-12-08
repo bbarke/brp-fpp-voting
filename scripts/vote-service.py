@@ -6,14 +6,16 @@ import json
 import time
 import os
 import re
+import sqlite3
 from crontab import CronTab
+from contextlib import closing
 
 
 
 # urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '11'
+plugin_version = '12'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
@@ -193,6 +195,7 @@ def upload_settings():
         'privateKey': private_key,
         'showSettings': {
             'votingMsg': get_setting_from_all_settings('votingMsg', all_settings),
+            'votingMsgHtml': get_setting_from_all_settings('votingMsgHtml', all_settings),
             'allowCurrentSongVoting': get_setting_from_all_settings('allowCurrentSongVoting', all_settings) == 'true',
             'votingTitlePreference': get_setting_from_all_settings('votingTitlePreference', all_settings),
             'snowing': get_setting_from_all_settings('snowing', all_settings),
@@ -201,8 +204,18 @@ def upload_settings():
             'backgroundGradientFirst': get_setting_from_all_settings('backgroundGradientFirst', all_settings),
             'backgroundGradientSecond': get_setting_from_all_settings('backgroundGradientSecond', all_settings),
             'fontColorHeader': get_setting_from_all_settings('fontColorHeader', all_settings),
+            'allowDuplicateVotes': get_setting_from_all_settings('allowDuplicateVotes', all_settings),
         }
     }
+
+    # TODO when stats are stored on the site, use this to delete them!
+    clear_stats = get_setting_from_all_settings('clearStats', all_settings)
+    if clear_stats == 'true':
+        save_setting('clearStats', 'false')
+        with closing(sqlite3_connection()) as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('DELETE FROM song_stats',)
+                conn.commit()
 
     logging.info(json.dumps(payload))
     response = requests.request("POST", url, headers=headers, data=json.dumps(payload), timeout=(10, 10))
@@ -439,6 +452,33 @@ def check_show_uploaded():
         logging.info('Songs are not loaded, the server must have restarted. Upload them again')
         load_songs(last_loaded_playlist)
 
+    if response.status_code == 200:
+        # update stats
+        logging.info(response.json())
+        try:
+            with closing(sqlite3_connection()) as conn:
+                with closing(conn.cursor()) as cursor:
+                    for stat in response.json()['songVotingStats']:
+                        new_votes = stat['votes']
+                        song_name = stat['displayName']
+                        song_id = stat['id']
+                        existing_votes = 0
+                        data = cursor.execute("SELECT song_id, song_name, votes FROM song_stats WHERE song_id = ? AND song_name = ?",
+                                              (song_id, song_name)).fetchall()
+                        if len(data) == 0:
+                            sql = 'INSERT INTO song_stats (song_id, song_name, votes) VALUES (?, ?, ?)'
+                            cursor.execute(sql, (song_id, song_name, existing_votes))
+                        else:
+                            existing_votes = data[0][2]
+
+                        existing_votes += new_votes
+                        sql_update = 'UPDATE song_stats SET votes = ? WHERE song_id = ? AND song_name = ?'
+                        cursor.execute(sql_update, (existing_votes, song_id, song_name))
+                    conn.commit()
+                    cursor.close()
+        except sqlite3.Error as error:
+            logging.error("Failed to insert data into sqlite table: " + str(error))
+
 def upload_show_playing_status():
     global private_key
     global show_status
@@ -512,6 +552,30 @@ def remove_launch_on_reboot():
     cron = CronTab(user=True)
     cron.remove_all(comment=get_cron_comment())
     cron.write()
+
+def sqlite3_connection():
+    try:
+        conn = sqlite3.connect('/home/fpp/media/plugins/brp-fpp-voting/brp-vote.db')
+        with closing(conn.cursor()) as cursor:
+
+            # Check if table exists - if it doesn't, create it
+            cursor.execute(''' SELECT count(name) FROM sqlite_master WHERE type='table' AND name='song_stats' ''')
+            if cursor.fetchone()[0]==1 :
+                logging.info('Table exists')
+            else:
+                logging.info('Create table...')
+                cursor.execute('''
+                                    CREATE TABLE song_stats (
+                                        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                                        song_id VARCHAR(5),
+                                        song_name TEXT,
+                                        votes INTEGER
+                                    );
+                                ''')
+            conn.commit()
+        return conn
+    except Exception as e:
+        logging.error('Could not connect to database! ' + str(e))
 
 argument = str(sys.argv[1])
 
