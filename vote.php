@@ -164,8 +164,8 @@ if (isset($_POST['loadSettings'])) {
             clearInterval(voteUrlInterval);
             var href = 'https://barkersrandomprojects.com/vote/' + publicKey;
             $('#votingUrl').attr('href', href).text(href);
-            $('#votingUrlSpinner').hide();
             $('#votingUrl').show();
+            $('#votingUrlSpinner').hide();
         });
     }
 
@@ -349,7 +349,7 @@ if (isset($_POST['loadSettings'])) {
                 if (isServiceRunning()) {
                     print("<tr>");
                     print("<td>Service is running.</td>");
-                    print('<td><input id="stopSvcBtn" class="button" name="killService" type="submit" value="Stop Service"/>');
+                    print('<td><input id="stopSvcBtn" class="buttons" name="killService" type="submit" value="Stop Service"/>');
                     print ('<script>setVotingUrl()</script>');
                     print("</tr>");
 
@@ -357,7 +357,7 @@ if (isset($_POST['loadSettings'])) {
                     print('<script>monitorStatus()</script>');
                     print('
                           <tr>
-                            <td colspan="2">Your unique voting URL is: <a id="votingUrl" target="_blank" hidden></a> <i id="votingUrlSpinner" class="fas fa-circle-notch fa-spin"></i>
+                            <td colspan="2">Your unique voting URL is: <a id="votingUrl" target="_blank" ></a> <i id="votingUrlSpinner" class="fas fa-circle-notch fa-spin"></i>
                             </td>
                           </tr>
                           ');
@@ -365,7 +365,7 @@ if (isset($_POST['loadSettings'])) {
                 } else {
                     print("<tr id='startServiceSection'>");
                     print("<td style='color:darkred;font-weight:bold;'>Service is not running!</td>");
-                    print('<td><input id="startSvcBtn" class="button" name="startService" type="submit" value="Start Service"/></td>');
+                    print('<td><input id="startSvcBtn" class="buttons" name="startService" type="submit" value="Start Service"/></td>');
                     print("</tr>");
 
                 }
@@ -527,7 +527,7 @@ box to select one of many predefined colors."></i></td>
         <tr>
             <td></td>
             <td>
-                <button class="button" id="settingsSaveBtn">Save</button>
+                <button class="buttons btn-success" id="settingsSaveBtn">Save</button>
                 <span id="savingSettingsIndicator" class="fas fa-circle-notch fa-spin" style="display: none;"></span>
                 <div id="submitSettings" hidden>
                     <form id="loadSettingsForm" method="post">
