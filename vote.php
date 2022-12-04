@@ -336,7 +336,7 @@ if (isset($_POST['loadSettings'])) {
                     <input id="keyDisabled" type="text" name="keyDisabled" size="36" disabled>
                     <?php
                         if (!isServiceRunning()) {
-                            print('<input id="generateKeyBtn" class="button" type="submit" name="generateNewKey" value="Generate New Key">');
+                            print('<input id="generateKeyBtn" class="buttons" type="submit" name="generateNewKey" value="Generate New Key">');
                         }
                     ?>
                 </td>
@@ -353,11 +353,11 @@ if (isset($_POST['loadSettings'])) {
                     print ('<script>setVotingUrl()</script>');
                     print("</tr>");
 
-                    print('<tr id="currentStatusDiv" hidden><td>Current status:</td><td id="status"></td></tr>');
+                    print('<tr id="currentStatusDiv"><td>Current status:</td><td id="status"></td></tr>');
                     print('<script>monitorStatus()</script>');
                     print('
                           <tr>
-                            <td colspan="2">Your unique voting URL is: <a id="votingUrl" target="_blank" ></a> <i id="votingUrlSpinner" class="fas fa-circle-notch fa-spin"></i>
+                            <td>Unique voting URL:</td><td><a id="votingUrl" target="_blank" ></a> <i id="votingUrlSpinner" class="fas fa-circle-notch fa-spin"></i>
                             </td>
                           </tr>
                           ');
@@ -389,73 +389,38 @@ if (isset($_POST['loadSettings'])) {
     <h2 style='color:darkred;font-weight:bold; display: none;' id="indicateRestart">Please stop and then start the plugin for all of the settings to take effect</h2>
     <table id="settingsTable">
         <tr>
-            <td>Voting message <i class="fa fa-info-circle" title="" data-title="Sets the message voters will see at the top of the page while a playlist is playing"></i></td>
+            <td>Header Message <i class="fa fa-info-circle" title="" data-title="Sets the message voters will see at the top of the page while a playlist is playing"></i></td>
             <td><input id="votingMsg" placeholder="Vote for the next song!"/></td>
         </tr>
         <tr>
-            <td>Voting message using HTML<i class="fa fa-info-circle" title="" data-title="Sets the message voters will see at the top of the page, allowing the flexiblilty of using HTML"></i></td>
+            <td>HTML Message <i class="fa fa-info-circle" title="" data-title="Sets the message voters will see at the top of the page, allowing the flexibility of using HTML"></i></td>
             <td><textarea id="votingMsgHtml"  rows="6" cols="80" placeholder="<h2>Vote for the next song!</h2>"></textarea></td>
         </tr>
         <tr>
-            <td>Allow voting for current song <i class="fa fa-info-circle" aria-hidden="true" title="" data-title="This will allow the voters to vote for the current playing song, potentially playing the same song multiple times in a row"></i></td>
-            <td><input id="currentSongVoting" type="checkbox"/></td>
-        </tr>
-        <tr>
-            <td>Voting titles <i class="fa fa-info-circle" aria-hidden="true" title="" data-title="This will either prefer the audio
-            name or the sequence name for the title displayed on the voting website. If either the sequence or media is
-            not available, it will fall back to the other. Underscores (e.g. '_') and the file extension (e.g. '.mp3')
-            will be stripped off by default on the voting website."></i></td>
+            <td>Message Text Color <i class="fa fa-info-circle" title="" data-title="Changes color of the header text
+                <br><br>Click into the input box to activate a color picker, or use the dropdown next to the input
+                box to select one of many predefined colors."></i></td>
             <td>
-                <table>
-                    <tr>
-                        <td>
-                            <label for="sequenceName">Sequence Name</label>
-                        </td>
-                        <td>
-                            <input id="sequenceName" name="votingTitlePreference" type="radio" value="sequenceName" checked="checked" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <label for="audioName">Audio Name</label>
-                        </td>
-                        <td>
-                            <input id="audioName" name="votingTitlePreference" type="radio" value="audioName"/>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-        <tr>
-            <td>Launch On Reboot <i class="fa fa-info-circle" title="" data-title="If Falcon Player is rebooted, this will enable the voting plugin to auto restart"></i></td>
-            <td><input id="launchOnReboot" type="checkbox"/></td>
-        </tr>
-        <tr>
-            <td>Snowing Theme <i class="fa fa-info-circle" title="" data-title="Creates a 'Snowing' effect on the voting website"></i></td>
-            <td><input id="snowing" type="checkbox"/></td>
-        </tr>
-        <tr>
-            <td>Allow Duplicate Votes <i class="fa fa-info-circle" title="" data-title="Allows the same person to vote multiple times"></i></td>
-            <td><input id="allowDuplicateVotes" type="checkbox"/></td>
-        </tr>
-        <tr>
-            <td>Background Image <i class="fa fa-info-circle" title="" data-title="Changes the background image shown on the voting website"></i></td>
-            <td>
-                <select id="backgroundImage">
-                    <option value="NONE">-- None --</option>
-                    <option value="SNOWMAN">Snowman</option>
-                    <option value="SNOWMAN_WITH_GLOVES">Snowman With Gloves</option>
-                    <option value="NATIVITY">Nativity</option>
-                    <option value="PUMPKIN">Pumpkin</option>
-                    <option value="PUMPKIN_HAPPY">Pumpkin Happy</option>
-                    <option value="PUMPKIN_SCARY">Pumpkin Scary</option>
+                <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="fontColorHeader">
+                Predefined colors:
+                <select id="fontColorHeaderPalette">
+                    <option>--</option>
+                    <option value="#000000" style="background: #000000; color: #cacaca">Black</option>
+                    <option value="#ffffff" style="background: #ffffff;">White</option>
+                    <option value="#fce94f" style="background: #fce94f;">Butter</option>
+                    <option value="#fcaf3e" style="background: #fcaf3e;">Orange</option>
+                    <option value="#e9b96e" style="background: #e9b96e;">Chocolate</option>
+                    <option value="#8ae234" style="background: #8ae234;">Chameleon</option>
+                    <option value="#729fcf" style="background: #729fcf;">Sky blue</option>
+                    <option value="#ad7fa8" style="background: #ad7fa8;">Plum</option>
+                    <option value="#ef2929" style="background: #ef2929;">Scarlet red</option>
                 </select>
             </td>
         </tr>
         <tr>
             <td>Background Gradient <i class="fa fa-info-circle" title="" data-title="Changes the background color shown on the voting website.
-If two colors are picked, then a gradient will be displayed.<br><br>Click into the input box to activate a color picker, or use the dropdown next to the input
-box to select one of many predefined colors."></i></td>
+                If two colors are picked, then a gradient will be displayed.<br><br>Click into the input box to activate a color picker, or use the dropdown next to the input
+                box to select one of many predefined colors."></i></td>
             <td>
                 <table>
                     <tr>
@@ -481,7 +446,7 @@ box to select one of many predefined colors."></i></td>
                             Secondary Color
                         </td>
                         <td>
-                        <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="backgroundGradientSecond">
+                            <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="backgroundGradientSecond">
                             Predefined colors:
                             <select id="backgroundGradientSecondPalette">
                                 <option>--</option>
@@ -500,25 +465,50 @@ box to select one of many predefined colors."></i></td>
             </td>
         </tr>
         <tr>
-            <td>Header Text Color <i class="fa fa-info-circle" title="" data-title="Changes color of the header text
-<br><br>Click into the input box to activate a color picker, or use the dropdown next to the input
-box to select one of many predefined colors."></i></td>
+            <td>Background Image <i class="fa fa-info-circle" title="" data-title="Changes the background image shown on the voting website"></i></td>
             <td>
-                <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="fontColorHeader">
-                Predefined colors:
-                <select id="fontColorHeaderPalette">
-                    <option>--</option>
-                    <option value="#000000" style="background: #000000; color: #cacaca">Black</option>
-                    <option value="#ffffff" style="background: #ffffff;">White</option>
-                    <option value="#fce94f" style="background: #fce94f;">Butter</option>
-                    <option value="#fcaf3e" style="background: #fcaf3e;">Orange</option>
-                    <option value="#e9b96e" style="background: #e9b96e;">Chocolate</option>
-                    <option value="#8ae234" style="background: #8ae234;">Chameleon</option>
-                    <option value="#729fcf" style="background: #729fcf;">Sky blue</option>
-                    <option value="#ad7fa8" style="background: #ad7fa8;">Plum</option>
-                    <option value="#ef2929" style="background: #ef2929;">Scarlet red</option>
+                <select id="backgroundImage">
+                    <option value="NONE">-- None --</option>
+                    <option value="SNOWMAN">Snowman</option>
+                    <option value="SNOWMAN_WITH_GLOVES">Snowman With Gloves</option>
+                    <option value="NATIVITY">Nativity</option>
+                    <option value="PUMPKIN">Pumpkin</option>
+                    <option value="PUMPKIN_HAPPY">Pumpkin Happy</option>
+                    <option value="PUMPKIN_SCARY">Pumpkin Scary</option>
                 </select>
             </td>
+        </tr>
+        <tr>
+            <td>Snowing Theme <i class="fa fa-info-circle" title="" data-title="Creates a 'Snowing' effect on the voting website"></i></td>
+            <td><input id="snowing" type="checkbox"/></td>
+        </tr>
+        <tr>
+            <td>Title Preference <i class="fa fa-info-circle" aria-hidden="true" title="" data-title="This will either prefer the audio
+            name or the sequence name for the title displayed on the voting website. If either the sequence or media is
+            not available, it will fall back to the other. Underscores (e.g. '_') and the file extension (e.g. '.mp3')
+            will be stripped off by default on the voting website."></i></td>
+            <td>
+                <div class="custom-control custom-radio">
+                    <input type="radio" class="custom-control-input" name="votingTitlePreference" id="sequenceName" value="sequenceName" checked>
+                    <label class="custom-control-label" for="sequenceName">Sequence Name</label>
+                </div>
+                <div class="custom-control custom-radio">
+                    <input type="radio" class="custom-control-input" name="votingTitlePreference" id="audioName" value="audioName">
+                    <label class="custom-control-label" for="audioName">Audio Name</label>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>Current Song Voting <i class="fa fa-info-circle" aria-hidden="true" title="" data-title="This will allow the voters to vote for the current playing song, potentially playing the same song multiple times in a row"></i></td>
+            <td><input id="currentSongVoting" type="checkbox"/></td>
+        </tr>
+        <tr>
+            <td>Allow Duplicate Votes <i class="fa fa-info-circle" title="" data-title="Allows the same person to vote multiple times"></i></td>
+            <td><input id="allowDuplicateVotes" type="checkbox"/></td>
+        </tr>
+        <tr>
+            <td>Launch On Reboot <i class="fa fa-info-circle" title="" data-title="If Falcon Player is rebooted, this will enable the voting plugin to auto restart"></i></td>
+            <td><input id="launchOnReboot" type="checkbox"/></td>
         </tr>
         <tr>
             <td>Clear Song Stats <i class="fa fa-info-circle" title="" data-title="Clears out all of the song Statistics"></i></td>
