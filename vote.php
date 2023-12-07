@@ -29,6 +29,7 @@ function startService() {
 
 function killService() {
     shell_exec("kill $(ps aux | grep 'vote-service.py' | grep -v grep | awk '{print $2}')");
+    WriteSettingToFile("restartPlugin", "false", "brp-voting");
 }
 
 function saveKey($key) {
@@ -208,15 +209,6 @@ if (isset($_POST['loadSettings'])) {
             // Mark the plugin as being restarted
             if (getSettingFromAllSettings('restartPlugin', allSettings) === 'true') {
                 $('#indicateRestart').show();
-
-                getAllSettings(function (allSettings) {
-                    allSettings = addSettingToAllSettings('restartPlugin', 'false', allSettings);
-                    $('#serviceState').submit(function (e) {
-                        saveSettings(allSettings, function () {
-                            console.log("Settings saved")
-                        })
-                    })
-                })
             }
 
             $('#loadingSettingsIndicator').hide();
@@ -389,15 +381,15 @@ if (isset($_POST['loadSettings'])) {
     <h2 style='color:darkred;font-weight:bold; display: none;' id="indicateRestart">Please stop and then start the plugin for all of the settings to take effect</h2>
     <table id="settingsTable">
         <tr>
-            <td>Header Message <i class="fa fa-info-circle" title="" data-title="Sets the message voters will see at the top of the page while a playlist is playing"></i></td>
+            <td>Header Message <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Sets the message voters will see at the top of the page while a playlist is playing"></i></td>
             <td><input id="votingMsg" placeholder="Vote for the next song!"/></td>
         </tr>
         <tr>
-            <td>HTML Message <i class="fa fa-info-circle" title="" data-title="Sets the message voters will see at the top of the page, allowing the flexibility of using HTML"></i></td>
+            <td>HTML Message <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Sets the message voters will see at the top of the page, allowing the flexibility of using HTML"></i></td>
             <td><textarea id="votingMsgHtml"  rows="6" cols="80" placeholder="<h2>Vote for the next song!</h2>"></textarea></td>
         </tr>
         <tr>
-            <td>Message Text Color <i class="fa fa-info-circle" title="" data-title="Changes color of the header text
+            <td>Message Text Color <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Changes color of the header text
                 <br><br>Click into the input box to activate a color picker, or use the dropdown next to the input
                 box to select one of many predefined colors."></i></td>
             <td>
@@ -418,7 +410,7 @@ if (isset($_POST['loadSettings'])) {
             </td>
         </tr>
         <tr>
-            <td>Background Gradient <i class="fa fa-info-circle" title="" data-title="Changes the background color shown on the voting website.
+            <td>Background Gradient <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Changes the background color shown on the voting website.
                 If two colors are picked, then a gradient will be displayed.<br><br>Click into the input box to activate a color picker, or use the dropdown next to the input
                 box to select one of many predefined colors."></i></td>
             <td>
@@ -465,7 +457,7 @@ if (isset($_POST['loadSettings'])) {
             </td>
         </tr>
         <tr>
-            <td>Background Image <i class="fa fa-info-circle" title="" data-title="Changes the background image shown on the voting website"></i></td>
+            <td>Background Image <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Changes the background image shown on the voting website"></i></td>
             <td>
                 <select id="backgroundImage">
                     <option value="NONE">-- None --</option>
@@ -479,11 +471,11 @@ if (isset($_POST['loadSettings'])) {
             </td>
         </tr>
         <tr>
-            <td>Snowing Theme <i class="fa fa-info-circle" title="" data-title="Creates a 'Snowing' effect on the voting website"></i></td>
+            <td>Snowing Theme <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Creates a 'Snowing' effect on the voting website"></i></td>
             <td><input id="snowing" type="checkbox"/></td>
         </tr>
         <tr>
-            <td>Title Preference <i class="fa fa-info-circle" aria-hidden="true" title="" data-title="This will either prefer the audio
+            <td>Title Preference <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="This will either prefer the audio
             name or the sequence name for the title displayed on the voting website. If either the sequence or media is
             not available, it will fall back to the other. Underscores (e.g. '_') and the file extension (e.g. '.mp3')
             will be stripped off by default on the voting website."></i></td>
@@ -499,19 +491,19 @@ if (isset($_POST['loadSettings'])) {
             </td>
         </tr>
         <tr>
-            <td>Current Song Voting <i class="fa fa-info-circle" aria-hidden="true" title="" data-title="This will allow the voters to vote for the current playing song, potentially playing the same song multiple times in a row"></i></td>
+            <td>Current Song Voting <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="This will allow the voters to vote for the current playing song, potentially playing the same song multiple times in a row"></i></td>
             <td><input id="currentSongVoting" type="checkbox"/></td>
         </tr>
         <tr>
-            <td>Allow Duplicate Votes <i class="fa fa-info-circle" title="" data-title="Allows the same person to vote multiple times"></i></td>
+            <td>Allow Duplicate Votes <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Allows the same person to vote multiple times"></i></td>
             <td><input id="allowDuplicateVotes" type="checkbox"/></td>
         </tr>
         <tr>
-            <td>Launch On Reboot <i class="fa fa-info-circle" title="" data-title="If Falcon Player is rebooted, this will enable the voting plugin to auto restart"></i></td>
+            <td>Launch On Reboot <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="If Falcon Player is rebooted, this will enable the voting plugin to auto restart"></i></td>
             <td><input id="launchOnReboot" type="checkbox"/></td>
         </tr>
         <tr>
-            <td>Clear Song Stats <i class="fa fa-info-circle" title="" data-title="Clears out all of the song Statistics"></i></td>
+            <td>Clear Song Stats <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Clears out all of the song Statistics"></i></td>
             <td><input id="clearStats" type="checkbox"/></td>
         </tr>
         <tr>
