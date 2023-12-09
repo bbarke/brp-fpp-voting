@@ -29,7 +29,6 @@ function startService() {
 
 function killService() {
     shell_exec("kill $(ps aux | grep 'vote-service.py' | grep -v grep | awk '{print $2}')");
-    WriteSettingToFile("restartPlugin", "false", "brp-voting");
 }
 
 function saveKey($key) {
@@ -209,6 +208,15 @@ if (isset($_POST['loadSettings'])) {
             // Mark the plugin as being restarted
             if (getSettingFromAllSettings('restartPlugin', allSettings) === 'true') {
                 $('#indicateRestart').show();
+
+                getAllSettings(function (allSettings) {
+                    allSettings = addSettingToAllSettings('restartPlugin', 'false', allSettings);
+                    $('#serviceState').submit(function (e) {
+                        saveSettings(allSettings, function () {
+                            console.log("Settings saved")
+                        })
+                    })
+                })
             }
 
             $('#loadingSettingsIndicator').hide();

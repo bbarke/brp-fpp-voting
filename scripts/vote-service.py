@@ -12,10 +12,10 @@ from contextlib import closing
 
 
 
-# urlBase = 'http://192.168.7.52:8092'
+# urlBase = 'http://192.168.7.58:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '16'
+plugin_version = '15'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
@@ -271,7 +271,7 @@ def get_status():
     global status_iteration
 
     try:
-        url = "http://127.0.0.1/api/fppd/status"
+        url = "http://127.0.0.1:32322/fppd/status"
         response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
 
         if response.status_code != 200:
@@ -347,7 +347,7 @@ def play_next_song_now():
     set_status('Starting next song')
     logging.info('Play song now: {}, {}'.format(next_song_to_play_id, last_loaded_playlist))
 
-    url = 'http://127.0.0.1/api/command/Start Playlist At Item/{}/{}/true'\
+    url = 'http://127.0.0.1:32322/command/Start Playlist At Item/{}/{}/true'\
         .format(last_loaded_playlist, next_song_to_play_id)
 
     r = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
@@ -383,21 +383,33 @@ def get_setting_from_cache(setting):
     return get_setting_from_all_settings(setting, cached_all_settings)
 
 def save_setting(setting, value):
-    properties = {}
-    file_path = "/home/fpp/media/config/plugin.brp-voting"
-    if os.path.isfile(file_path):
-        with open(file_path, 'r') as file:
-            for line in file:
-                if '=' not in line:
-                    continue
-                k, v = map(str.strip, line.split('='))
-                properties[k] = v.strip('" ')
+    url = 'http://127.0.0.1/api/configfile/plugin.brp-voting'
 
-    properties[setting] = value
+    all_settings = get_all_settings()
 
-    with open(file_path, 'w') as file:
-        for k, v in properties.items():
-            file.write(f'{k} = "{v}"\n')
+    regex = setting + ' = "(.*)"$'
+    found = False
+    replacement ='{} = "{}"'.format(setting, value)
+    new_settings = []
+
+    for line in all_settings:
+        m = re.match(regex, line)
+        if m:
+            new_settings.append(replacement)
+            found = True
+        else:
+            new_settings.append(line)
+
+    if not found:
+        new_settings.append(replacement)
+
+    headers = {
+        'Content-Type': 'text/html'
+    }
+
+    body = '\n'.join(new_settings)
+
+    response = requests.request("POST", url, headers={}, data=body, timeout=(10, 10))
 
 def save_public_api_key():
     global public_api_key
