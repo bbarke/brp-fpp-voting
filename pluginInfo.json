@@ -10,35 +10,19 @@
 	"versions": [
 		{
 			"minFPPVersion": "3.5.7",
-			"maxFPPVersion": "7.99",
-			"branch": "plugin-version-16",
-			"sha": "",
-			"dependencies": {
-				"plugins": [],
-				"packages": [],
-				"scripts": []
-			}
-		},
-		{
-			"minFPPVersion": "8.0",
-			"maxFPPVersion": "8.99",
-			"branch": "master",
-			"sha": "",
-			"dependencies": {
-				"plugins": [],
-				"packages": [],
-				"scripts": []
-			}
-		},
-		{
-			"minFPPVersion": "9.0",
 			"maxFPPVersion": "0",
 			"branch": "master",
 			"sha": "",
+			"platforms": [
+				"Raspberry Pi"
+			],
 			"dependencies": {
-				"plugins": [],
-				"packages": [],
-				"scripts": []
+				"plugins": [
+				],
+				"packages": [
+				],
+				"scripts": [
+				]
 			}
 		}
 	]
