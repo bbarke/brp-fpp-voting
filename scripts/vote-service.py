@@ -15,7 +15,7 @@ from contextlib import closing
 # urlBase = 'http://192.168.7.52:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '16'
+plugin_version = '17'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
