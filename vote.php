@@ -55,11 +55,6 @@ if (isset($_POST['loadSettings'])) {
 }
 
 ?>
-
-<script src="https://kit.fontawesome.com/4b00e40eba.js" crossorigin="anonymous"></script>
-<script type="text/javascript" src="https://barkersrandomprojects.com/assets/lib/color-wheel/jquery.wheelcolorpicker.min.js"></script>
-<link type="text/css" rel="stylesheet" href="https://barkersrandomprojects.com/assets/lib/color-wheel/wheelcolorpicker.css"/>
-
 <script>
     var voteUrlInterval;
 
@@ -81,10 +76,15 @@ if (isset($_POST['loadSettings'])) {
     }
 
     function getAllSettings(callback) {
-        var url = 'api/configfile/plugin.brp-voting';
+        var url = 'api/configfile/plugin.brp-voting?cacheBust=' + new Date().getTime();
         $.ajax({
             type: 'GET',
             url: url,
+            dataType: 'text',
+            contentType: 'text/plain',
+            headers: {
+                'Accept': 'text/plain'
+            },
             success: function (data) {
                 console.log("configs: " + JSON.stringify(data));
                 var allSettings = data.split('\n');
@@ -188,17 +188,17 @@ if (isset($_POST['loadSettings'])) {
 
             var backgroundGradientFirst = getSettingFromAllSettings('backgroundGradientFirst', allSettings);
             if (backgroundGradientFirst) {
-                $('#backgroundGradientFirst').wheelColorPicker('setValue', backgroundGradientFirst);
+                $('#backgroundGradientFirst').val('#' + backgroundGradientFirst);
             }
 
             var backgroundGradientSecond = getSettingFromAllSettings('backgroundGradientSecond', allSettings)
             if (backgroundGradientSecond) {
-                $('#backgroundGradientSecond').wheelColorPicker('setValue', backgroundGradientSecond);
+                $('#backgroundGradientSecond').val('#' + backgroundGradientSecond);
             }
 
             var fontColorHeader = getSettingFromAllSettings('fontColorHeader', allSettings);
             if (fontColorHeader) {
-                $('#fontColorHeader').wheelColorPicker('setValue', fontColorHeader);
+                $('#fontColorHeader').val('#' + fontColorHeader);
             }
 
             var pref = '#' + getSettingFromAllSettings('votingTitlePreference', allSettings);
@@ -236,9 +236,26 @@ if (isset($_POST['loadSettings'])) {
 
             allSettings = addSettingToAllSettings('votingTitlePreference', prefNow, allSettings);
             allSettings = addSettingToAllSettings('backgroundImage', $('#backgroundImage option').filter(':selected').val(), allSettings);
-            allSettings = addSettingToAllSettings('backgroundGradientFirst', $('#backgroundGradientFirst').val(), allSettings);
-            allSettings = addSettingToAllSettings('backgroundGradientSecond', $('#backgroundGradientSecond').val(), allSettings);
-            allSettings = addSettingToAllSettings('fontColorHeader', $('#fontColorHeader').val(), allSettings);
+            // Strip '#' from color values before saving
+            var bgFirst = $('#backgroundGradientFirst').val();
+            if (bgFirst && bgFirst.startsWith('#')) {
+                bgFirst = bgFirst.substring(1);
+            }
+            allSettings = addSettingToAllSettings('backgroundGradientFirst', bgFirst, allSettings);
+
+
+            var bgSecond = $('#backgroundGradientSecond').val();
+            if (bgSecond && bgSecond.startsWith('#')) {
+                bgSecond = bgSecond.substring(1);
+            }
+            allSettings = addSettingToAllSettings('backgroundGradientSecond', bgSecond, allSettings);
+
+            var fontColor = $('#fontColorHeader').val();
+            if (fontColor && fontColor.startsWith('#')) {
+                fontColor = fontColor.substring(1);
+            }
+
+            allSettings = addSettingToAllSettings('fontColorHeader', fontColor, allSettings);
             allSettings = addSettingToAllSettings('clearStats', $('#clearStats').prop("checked") + '', allSettings);
 
             saveSettings(allSettings, function (data) {
@@ -276,30 +293,27 @@ if (isset($_POST['loadSettings'])) {
             }
         });
     });
-    // color wheels
+    // color palettes for native color pickers
     $(function() {
         $('#backgroundGradientFirstPalette').on('change', function() {
             if ($(this).val() === '--') {
-                $('#backgroundGradientFirst').wheelColorPicker('setValue', 'ffffff');
-                $('#backgroundGradientFirst').val('');
+                $('#backgroundGradientFirst').val('#ffffff');
             } else {
-                $('#backgroundGradientFirst').wheelColorPicker('setValue', $(this).val());
+                $('#backgroundGradientFirst').val($(this).val());
             }
         });
         $('#backgroundGradientSecondPalette').on('change', function() {
             if ($(this).val() === '--') {
-                $('#backgroundGradientSecond').wheelColorPicker('setValue', 'ffffff');
-                $('#backgroundGradientSecond').val('');
+                $('#backgroundGradientSecond').val('#ffffff');
             } else {
-                $('#backgroundGradientSecond').wheelColorPicker('setValue', $(this).val());
+                $('#backgroundGradientSecond').val($(this).val());
             }
         });
         $('#fontColorHeaderPalette').on('change', function() {
             if ($(this).val() === '--') {
-                $('#fontColorHeader').wheelColorPicker('setValue', 'ffffff');
-                $('#fontColorHeader').val('');
+                $('#fontColorHeader').val('#ffffff');
             } else {
-                $('#fontColorHeader').wheelColorPicker('setValue', $(this).val());
+                $('#fontColorHeader').val($(this).val());
             }
         });
     });
@@ -372,7 +386,6 @@ if (isset($_POST['loadSettings'])) {
             <input type="hidden" name="cmd" value="_s-xclick" />
             <input type="hidden" name="hosted_button_id" value="PZJGWXKBQFFHG" />
             <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" border="0" name="submit" alt="Donate with PayPal button" />
-            <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1" />
         </form>
     </div>
     <hr>
@@ -393,7 +406,7 @@ if (isset($_POST['loadSettings'])) {
                 <br><br>Click into the input box to activate a color picker, or use the dropdown next to the input
                 box to select one of many predefined colors."></i></td>
             <td>
-                <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="fontColorHeader">
+                <input type="color" id="fontColorHeader">
                 Predefined colors:
                 <select id="fontColorHeaderPalette">
                     <option>--</option>
@@ -418,7 +431,7 @@ if (isset($_POST['loadSettings'])) {
                     <tr>
                         <td>Primary Color</td>
                         <td>
-                            <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="backgroundGradientFirst">
+                            <input type="color" id="backgroundGradientFirst">
                             Predefined colors:
                             <select id="backgroundGradientFirstPalette">
                                 <option>--</option>
@@ -438,7 +451,7 @@ if (isset($_POST['loadSettings'])) {
                             Secondary Color
                         </td>
                         <td>
-                            <input type="text" data-wheelcolorpicker="" data-wcp-preview="true" id="backgroundGradientSecond">
+                            <input type="color" id="backgroundGradientSecond">
                             Predefined colors:
                             <select id="backgroundGradientSecondPalette">
                                 <option>--</option>
