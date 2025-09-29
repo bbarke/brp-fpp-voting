@@ -15,7 +15,7 @@ from contextlib import closing
 # urlBase = 'http://192.168.7.52:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '16'
+plugin_version = '18'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
@@ -355,7 +355,7 @@ def play_next_song_now():
     uploaded_song_name = ''
 
 def get_all_settings():
-    url = 'http://127.0.0.1/api/configfile/plugin.brp-voting'
+    url = 'http://127.0.0.1/api/configfile/plugin.brp-voting?cacheBust=' + str(time.time())
     response = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
 
     if response.status_code == 200:
