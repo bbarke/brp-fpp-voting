@@ -501,6 +501,10 @@ if (isset($_POST['loadSettings'])) {
                     <input type="radio" class="custom-control-input" name="votingTitlePreference" id="audioName" value="audioName">
                     <label class="custom-control-label" for="audioName">Audio Name</label>
                 </div>
+                <div class="custom-control custom-radio">
+                    <input type="radio" class="custom-control-input" name="votingTitlePreference" id="mp3Tag" value="mp3Tag">
+                    <label class="custom-control-label" for="mp3Tag">MP3 Tag</label>
+                </div>
             </td>
         </tr>
         <tr>

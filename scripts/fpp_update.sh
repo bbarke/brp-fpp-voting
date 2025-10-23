@@ -13,6 +13,11 @@ if ! dpkg -s python3-crontab >/dev/null 2>&1; then
     missing_packages+=" python3-crontab"
 fi
 
+# Check for python3-mutagen
+if ! dpkg -s python3-mutagen >/dev/null 2>&1; then
+    missing_packages+=" python3-mutagen"
+fi
+
 if [ -n "$missing_packages" ]; then
     sudo apt-get update
     sudo apt-get install -y$missing_packages
