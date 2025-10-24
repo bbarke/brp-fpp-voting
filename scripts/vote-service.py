@@ -9,6 +9,7 @@ import re
 import sqlite3
 from crontab import CronTab
 from contextlib import closing
+from mutagen.easyid3 import EasyID3
 
 
 
@@ -114,7 +115,24 @@ def load_songs(playlist_to_load):
 
         title = ''
         logging.info('title pref {}'.format(title_pref))
-        if title_pref is None or title_pref == 'sequenceName':
+        if title_pref == 'mp3Tag':
+            logging.info('use mp3 tags')
+            if 'mediaName' in song:
+                try:
+                    audio = EasyID3('/home/fpp/media/music/' + song['mediaName'])
+                    title = audio['title'][0] + ' - ' + audio['artist'][0]
+                except Exception as e:
+                    logging.warning("Could not read MP3 tags for {}: {}".format(song['mediaName'], e))
+                    if 'sequenceName' in song:
+                        title = str(song['sequenceName'])
+                    else:
+                        title = str(song['mediaName'])
+            else:
+                if 'sequenceName' in song:
+                    title = str(song['sequenceName'])
+                else:
+                    title = 'Unknown'
+        elif title_pref is None or title_pref == 'sequenceName':
             logging.info('use sequence names')
             if 'sequenceName' in song:
                 title = str(song['sequenceName'])
@@ -593,4 +611,3 @@ while True:
     time.sleep(1)
     get_status()
     status_iteration += 1
-
