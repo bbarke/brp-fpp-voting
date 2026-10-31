@@ -15,7 +15,7 @@ from contextlib import closing
 # urlBase = 'http://192.168.7.52:8092'
 urlBase = 'https://barkersrandomprojects.com/api'
 
-plugin_version = '18'
+plugin_version = '19'
 
 logging.basicConfig(level=logging.INFO, filename='/home/fpp/media/logs/vote.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 private_key = ''
@@ -30,6 +30,38 @@ uploaded_song_id = ''
 start_time = ''
 status_iteration = 0
 cached_all_settings = []
+
+# Seconds of lead time before the end of the current song at which voting is
+# closed and the winner is queued.  Overridable via the 'votingCloseSeconds'
+# plugin setting.  Needs to be long enough for the vote tally round-trip to
+# finish before FPP reaches the item boundary.
+DEFAULT_VOTE_CLOSE_SECONDS = 10
+
+# Guards so voting is closed exactly once per played item.  Replaces the old
+# blocking time.sleep(5), which stalled the whole status loop.
+vote_closed_for_current_song = False
+last_seen_song_id = None
+# Status text chosen when voting closed, re-published while we wait out the
+# remainder of the current song.
+vote_closed_status = ''
+
+# Item id handed to 'Insert Playlist After Current', kept so the song can still
+# be identified once it is on air -- see get_status().  loaded_song_count is how
+# many items load_songs() last published, which is what tells a real one-song
+# playlist apart from an inserted one.
+queued_song_id = ''
+# The insert currently on air, and the sequence name it is playing.  Kept apart
+# from queued_song_id so a winner queued during another winner does not make the
+# reported song jump ahead of what is actually playing.
+playing_queued_song_id = ''
+playing_queued_seq = ''
+loaded_song_count = 0
+# Whether the loaded playlist wraps back to item 1 after its last item.
+loaded_playlist_repeat = False
+# sequenceName -> item id, built by load_songs().  This is how an inserted song
+# is identified: it works even when this process did not queue it (a restart
+# mid-insert), which the remembered-state path above cannot handle.
+loaded_song_sequences = {}
 
 def get_new_private_key():
     logging.debug('Getting new private key')
@@ -77,6 +109,9 @@ def load_songs(playlist_to_load):
     global show_status
     global uploaded_song_name
     global public_api_key
+    global loaded_song_count
+    global loaded_song_sequences
+    global loaded_playlist_repeat
 
     if load_song_tries == 0:
         set_status('Loading Songs...')
@@ -99,6 +134,7 @@ def load_songs(playlist_to_load):
         data = json.load(f)
     logging.info(data)
     song_names = []
+    loaded_song_sequences = {}
 
     lead_in_songs = 1
 
@@ -131,6 +167,15 @@ def load_songs(playlist_to_load):
             else:
                 title = 'Unknown'
         song_names.append({"id": idx, "title": title})
+        # Keyed on the sequence, not the display title, because that is what
+        # /api/fppd/status reports as current_sequence.  A playlist listing the
+        # same sequence twice keeps the later id; the ids are interchangeable
+        # for reporting purposes anyway.
+        if 'sequenceName' in song:
+            loaded_song_sequences[str(song['sequenceName'])] = idx
+
+    loaded_song_count = len(song_names)
+    loaded_playlist_repeat = bool(data.get('repeat'))
 
     payload = {
         'privateKey': private_key,
@@ -269,6 +314,11 @@ def get_status():
     global uploaded_song_id
     global start_time
     global status_iteration
+    global vote_closed_for_current_song
+    global last_seen_song_id
+    global queued_song_id
+    global playing_queued_song_id
+    global playing_queued_seq
 
     try:
         url = "http://127.0.0.1/api/fppd/status"
@@ -284,6 +334,7 @@ def get_status():
         current_song_id = json['current_playlist']['index']
         seconds_remaining = int(json['seconds_remaining'])
         current_playlist = json['current_playlist']['playlist']
+        current_playlist_count = int(json['current_playlist']['count'] or 0)
 
 
         logging.debug("Current playlist: {}, Current song: {}, Seconds remaining: {}"
@@ -321,38 +372,177 @@ def get_status():
             logging.info("Playlist changed from '{}' to '{}'".format(last_loaded_playlist, current_playlist))
             load_songs(current_playlist)
 
+        # Must come after the load_songs() calls above: on a fresh start (or a
+        # restart mid-insert) loaded_song_sequences is empty until they run, and
+        # resolving before then reports FPP's raw index 1 for the inserted song.
+        # A queued song runs as a playlist of its own, so FPP reports it as
+        # index 1 of 1 rather than as its position in the show playlist.  Left
+        # alone that would tell the site item 1 is playing.
+        if current_playlist_count == 1 and loaded_song_count > 1:
+            # Preferred: ask which sequence is playing and look up its id.  This
+            # is the only path that works when this process did not queue the
+            # song (service restarted mid-insert).
+            resolved_id = loaded_song_sequences.get(current_song)
+
+            # Fallback for entries with no sequence to match on (media-only
+            # items): promote the pending id, but only once the sequence has
+            # actually changed -- a winner can be queued while a previous
+            # winner is still playing and FPP runs them back to back, so the
+            # pending id must not be used the moment it is queued.
+            if queued_song_id != '' and current_song != playing_queued_seq:
+                playing_queued_song_id = queued_song_id
+                playing_queued_seq = current_song
+                queued_song_id = ''
+
+            if resolved_id is not None:
+                current_song_id = str(resolved_id)
+            elif playing_queued_song_id != '':
+                current_song_id = playing_queued_song_id
+        else:
+            playing_queued_song_id = ''
+            playing_queued_seq = ''
+
+
+        uploaded_now_playing = False
         if current_song != uploaded_song_name and current_song_id != uploaded_song_id :
             uploaded_song_name = current_song
             uploaded_song_id = current_song_id
             upload_now_playing(uploaded_song_name, uploaded_song_id)
+            uploaded_now_playing = True
 
-        set_status('Waiting for song to get close to ending..')
-        if seconds_remaining < 3:
+        vote_close_seconds = get_vote_close_seconds()
+
+        # Reset the once-per-song guard when FPP moves to a different item, and
+        # also whenever we are back outside the closing window (covers a vote
+        # for the item that is already playing, where the index does not move).
+        was_closed = vote_closed_for_current_song
+        if current_song_id != last_seen_song_id:
+            last_seen_song_id = current_song_id
+            vote_closed_for_current_song = False
+        if seconds_remaining > vote_close_seconds:
+            vote_closed_for_current_song = False
+
+        # Closing the vote makes the server replace its now-playing with the
+        # result, which is nothing when nobody voted, and the server ignores
+        # votes while now-playing is empty.  If the same song then plays again
+        # (a one-song playlist, or a repeat of the winner) the name/id check
+        # above never fires, so restore it as the next item starts.
+        if was_closed and not vote_closed_for_current_song and not uploaded_now_playing:
+            upload_now_playing(current_song, current_song_id)
+
+        if vote_closed_for_current_song:
+            set_status(vote_closed_status)
+        elif seconds_remaining <= vote_close_seconds:
+            vote_closed_for_current_song = True
             get_voting_results()
-            play_next_song_now()
-            time.sleep(5)
+            inserted_playing = current_playlist_count == 1 and loaded_song_count > 1
+            queue_next_song(None if inserted_playing else int(current_song_id))
+        else:
+            set_status('Waiting for song to get close to ending..')
 
     except Exception as e:
         logging.error("Problem getting status! " + str(e))
 
-def play_next_song_now():
+def get_vote_close_seconds():
+    value = get_setting_from_cache('votingCloseSeconds')
+
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_VOTE_CLOSE_SECONDS
+
+    # A zero/negative lead time would put us back to cutting the song off.
+    if seconds < 1:
+        return DEFAULT_VOTE_CLOSE_SECONDS
+
+    return seconds
+
+def set_vote_closed_status(status):
+    global vote_closed_status
+
+    vote_closed_status = status
+    set_status(status)
+
+def queue_next_song(parent_index=None):
     global next_song_to_play_id
     global last_loaded_playlist
-    global uploaded_song_name
+    global queued_song_id
 
-    if next_song_to_play_id == '-1':
+    if next_song_to_play_id == '-1' or next_song_to_play_id == '':
         logging.debug('No songs voted for')
+        set_vote_closed_status('Voting closed with no votes, playlist order continues')
         return
 
-    set_status('Starting next song')
-    logging.info('Play song now: {}, {}'.format(next_song_to_play_id, last_loaded_playlist))
+    # FPP parses startItem with atoi() and treats anything <= 0 as "no start
+    # position", which means INSERT THE WHOLE PLAYLIST.  So an id of '', '0',
+    # 'null' or any non-numeric reply from the vote server would splice every
+    # song into the middle of the show rather than the one that won.  An
+    # out-of-range id is harmless (FPP drops the insert), so only the lower
+    # bound has to be checked here.
+    try:
+        song_number = int(next_song_to_play_id)
+    except (TypeError, ValueError):
+        song_number = 0
 
-    url = 'http://127.0.0.1/api/command/Start Playlist At Item/{}/{}/true'\
-        .format(last_loaded_playlist, next_song_to_play_id)
+    if song_number < 1:
+        logging.error('Refusing to queue bad song id: {!r}'.format(next_song_to_play_id))
+        set_vote_closed_status('Voting closed with an unusable result, playlist order continues')
+        next_song_to_play_id = ''
+        return
+
+    # Insert Playlist After Current plays the winner and then the parent carries
+    # on from the item after the one that was playing.  When the winner already
+    # IS that next item, inserting it would play it twice back to back, so leave
+    # the playlist alone.  parent_index is None while an insert is on air (the
+    # parent's position is unknown then), so the insert goes ahead as normal.
+    if parent_index is not None:
+        if parent_index < loaded_song_count:
+            natural_next = parent_index + 1
+        elif loaded_playlist_repeat:
+            natural_next = 1
+        else:
+            natural_next = None
+        if song_number == natural_next:
+            logging.info('Song {} is already next in {}, not inserting it'.format(song_number, last_loaded_playlist))
+            set_vote_closed_status('Next song is already next in the playlist order')
+            next_song_to_play_id = ''
+            return
+
+    logging.info('Queue song: {}, {}'.format(next_song_to_play_id, last_loaded_playlist))
+
+    # 'Insert Playlist After Current' hands FPP the winner without touching the
+    # item that is playing: Player::InsertPlaylistAsNext() only stashes it, and
+    # Playlist::Process() picks it up once the current entry reports finished.
+    # 'Start Playlist At Item' (what this used to call) restarts the playlist
+    # outright, which is what truncated the tail of the song.
+    #
+    # Args are name / startItem / endItem / ifNotRunning, and startItem and
+    # endItem are 1-based -- the same numbering load_songs() already assigns to
+    # next_song_to_play_id -- so passing it as both plays exactly that one item.
+    #
+    # ifNotRunning MUST stay false.  FPP skips the insert when it is true and
+    # the inserted name matches the running playlist, and we always insert from
+    # the playlist that is already on air.
+    url = 'http://127.0.0.1/api/command/Insert Playlist After Current/{}/{}/{}/false'\
+        .format(last_loaded_playlist, song_number, song_number)
 
     r = requests.request("GET", url, headers={}, data={}, timeout=(10, 10))
+
+    if r.status_code != 200:
+        logging.error('Could not queue next song: {} {}'.format(r.status_code, r.text))
+        set_vote_closed_status('Could not queue the winning song, playlist order continues')
+        return
+
+    set_vote_closed_status('Next song queued, waiting for current song to finish')
+
+    # get_status() needs this to name the song once the insert starts playing.
+    # Store the normalised form, which is what FPP was actually given.
+    queued_song_id = str(song_number)
+
+    # Leave uploaded_song_name alone: the current song is still playing and is
+    # still correctly reported as now-playing.  The changeover is picked up on a
+    # later poll, once FPP actually advances to the queued item.
     next_song_to_play_id = ''
-    uploaded_song_name = ''
 
 def get_all_settings():
     url = 'http://127.0.0.1/api/configfile/plugin.brp-voting?cacheBust=' + str(time.time())
