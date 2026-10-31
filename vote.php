@@ -143,16 +143,60 @@ if (isset($_POST['loadSettings'])) {
     function setPrivateKeyField() {
         getSetting('privateKey', function (data) {
             var privateKey = data;
-
             if (privateKey === false || privateKey === null) {
                 $('#keyDisabled').val('You need to generate a new key');
                 $('#startServiceSection').hide();
                 return;
             }
-
             $('#keyDisabled').val(privateKey)
+            $('#keyDisabled').prop('disabled', true);
+            $('#savePrevKeyBtn').hide();
         });
     }
+
+    // UUID v4 validation
+    function isValidUUID(uuid) {
+        var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(uuid);
+    }
+
+    $(document).on('click', '#setPrevKeyBtn', function() {
+        // Store current value to restore on cancel
+        $('#keyDisabled').data('prev', $('#keyDisabled').val());
+        $('#keyDisabled').prop('disabled', false);
+        $('#keyDisabled').val('');
+        $('#savePrevKeyBtn').show();
+        $('#cancelPrevKeyBtn').show();
+    });
+
+    $(document).on('click', '#savePrevKeyBtn', function() {
+        var key = $('#keyDisabled').val().trim().toLowerCase();
+        if (!isValidUUID(key)) {
+            alert('Invalid UUID format. Please enter a valid private key.');
+            return;
+        }
+        // Save to config using same logic as other settings
+        getAllSettings(function(allSettings) {
+            allSettings = addSettingToAllSettings('privateKey', key, allSettings);
+            saveSettings(allSettings, function() {
+                $('#keyDisabled').prop('disabled', true);
+                $('#savePrevKeyBtn').hide();
+                $('#cancelPrevKeyBtn').hide();
+                setPrivateKeyField();
+            });
+        });
+    });
+
+    $(document).on('click', '#cancelPrevKeyBtn', function() {
+        // Restore previous value and disable field
+        var prev = $('#keyDisabled').data('prev');
+        if (prev !== undefined) {
+            $('#keyDisabled').val(prev);
+        }
+        $('#keyDisabled').prop('disabled', true);
+        $('#savePrevKeyBtn').hide();
+        $('#cancelPrevKeyBtn').hide();
+    });
 
     function setVotingUrl() {
         getSetting('publicApiKey', function (data) {
@@ -184,6 +228,7 @@ if (isset($_POST['loadSettings'])) {
             $('#snowing').prop('checked', getSettingFromAllSettings('snowing', allSettings) === 'true');
             $('#allowDuplicateVotes').prop('checked', getSettingFromAllSettings('allowDuplicateVotes', allSettings) === 'true');
             $('#launchOnReboot').prop('checked', getSettingFromAllSettings('launchOnReboot', allSettings) === 'true');
+            $('#votingCloseSeconds').val(getSettingFromAllSettings('votingCloseSeconds', allSettings));
             $('#backgroundImage').val(getSettingFromAllSettings('backgroundImage', allSettings));
 
             var backgroundGradientFirst = getSettingFromAllSettings('backgroundGradientFirst', allSettings);
@@ -227,6 +272,9 @@ if (isset($_POST['loadSettings'])) {
             allSettings = addSettingToAllSettings('snowing', $('#snowing').prop("checked") + '', allSettings);
             allSettings = addSettingToAllSettings('allowDuplicateVotes', $('#allowDuplicateVotes').prop("checked") + '', allSettings);
             allSettings = addSettingToAllSettings('launchOnReboot', $('#launchOnReboot').prop("checked") + '', allSettings);
+            // Blank (or anything under 1) is stored as blank so the service uses its default.
+            var closeSeconds = parseInt($('#votingCloseSeconds').val(), 10);
+            allSettings = addSettingToAllSettings('votingCloseSeconds', closeSeconds >= 1 ? closeSeconds + '' : '', allSettings);
             var prefPrev = getSettingFromAllSettings('votingTitlePreference', allSettings);
             var prefNow = $('input[name="votingTitlePreference"]:checked').val();
 
@@ -343,6 +391,9 @@ if (isset($_POST['loadSettings'])) {
                     <?php
                         if (!isServiceRunning()) {
                             print('<input id="generateKeyBtn" class="buttons" type="submit" name="generateNewKey" value="Generate New Key">');
+                            print('<button id="setPrevKeyBtn" class="buttons" type="button" style="margin-left:5px;">Set Previous Key</button>');
+                            print('<button id="savePrevKeyBtn" class="buttons btn-success" type="button" style="margin-left:5px;display:none;">Save Key</button>');
+                            print('<button id="cancelPrevKeyBtn" class="buttons btn-secondary" type="button" style="margin-left:5px;display:none;">Cancel</button>');
                         }
                     ?>
                 </td>
@@ -516,7 +567,11 @@ if (isset($_POST['loadSettings'])) {
             <td><input id="launchOnReboot" type="checkbox"/></td>
         </tr>
         <tr>
-            <td>Clear Song Stats <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Clears out all of the song Statistics"></i></td>
+            <td>Voting Close (seconds) <i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="How many seconds before the current song ends that voting closes and the winner is queued. Leave blank for the default of 10."></i></td>
+            <td><input id="votingCloseSeconds" type="number" min="1" max="120" step="1" placeholder="10" style="width: 5em;"/></td>
+        </tr>
+        <tr>
+            <td>Clear Song Stats<i class="fa fa-info-circle" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" data-bs-title="Clears out all of the song Statistics"></i></td>
             <td><input id="clearStats" type="checkbox"/></td>
         </tr>
         <tr>
